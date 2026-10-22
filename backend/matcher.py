@@ -269,7 +269,7 @@ def score_and_audit(
     next_actions = [deadline_action, skills_action, application_action]
 
     # Organization extraction
-    org = search_result.get("organization")
+    org = search_result.get("organization") or search_result.get("site_name")
     if not org:
         parsed_domain = urlparse(source_url).netloc
         org = parsed_domain.replace("www.", "").capitalize() if parsed_domain else "Opportunity Host"

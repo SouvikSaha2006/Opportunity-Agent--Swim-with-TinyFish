@@ -20,6 +20,7 @@ def get_headers() -> Dict[str, str]:
     headers = {
         "User-Agent": "OpportunityAgent/1.0",
         "Accept": "application/json",
+        "X-TF-Request-Origin": "api",
     }
     if api_key:
         headers["X-API-Key"] = api_key
@@ -178,14 +179,16 @@ def fetch_page_content(
                 results_arr = data.get("results") or data.get("data")
                 if isinstance(results_arr, list) and len(results_arr) > 0:
                     first = results_arr[0]
-                    markdown_content = first.get("markdown") or first.get("content") or ""
+                    markdown_content = first.get("text") or first.get("markdown") or first.get("content") or ""
+                elif "text" in data:
+                    markdown_content = data["text"]
                 elif "markdown" in data:
                     markdown_content = data["markdown"]
                 elif "content" in data:
                     markdown_content = data["content"]
             elif isinstance(data, list) and len(data) > 0:
                 first = data[0]
-                markdown_content = first.get("markdown") or first.get("content") or ""
+                markdown_content = first.get("text") or first.get("markdown") or first.get("content") or ""
 
             return markdown_content, telemetry
         else:
