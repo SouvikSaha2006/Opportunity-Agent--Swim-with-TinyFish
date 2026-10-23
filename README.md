@@ -76,6 +76,11 @@ Tactile input controls with instant profile presets designed for quick live test
 - Save top-ranked opportunities with a single click.
 - Seamlessly query, review evidence, or delete entries via `GET /api/saved` and `DELETE /api/saved/{id}`.
 
+### 7. Autonomous Destination Portal Stress-Tester
+- Elevates TinyFish web inspection beyond surface crawling: follows candidate application and registration endpoints into final forms (Unstop, Devfolio, Google Forms, corporate ATS).
+- Deterministically verifies whether the destination form is **Live Verified** (`PORTAL_LIVE_VERIFIED`), **Closed/Expired** (`PORTAL_CLOSED_OR_EXPIRED`), or **Gated behind Auth** (`AUTH_WALL_REQUIRED`).
+- Emits real-time `[DEEP_AUDIT]` SSE telemetry and displays tactile badges and deep diagnostics in the Evidence Drawer.
+
 ---
 
 ## 🏗️ System Architecture

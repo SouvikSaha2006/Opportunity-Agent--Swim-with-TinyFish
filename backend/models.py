@@ -67,3 +67,17 @@ class OpportunityRecord(BaseModel):
     )
     evidence_snippet: str = Field(..., description="Direct verbatim snippet from source")
     is_live_data: bool = Field(default=True, description="Indicator if sourced via live web agents")
+    portal_health_status: Literal[
+        "PORTAL_LIVE_VERIFIED",
+        "PORTAL_CLOSED_OR_EXPIRED",
+        "AUTH_WALL_REQUIRED",
+        "PORTAL_UNVERIFIED"
+    ] = Field(
+        default="PORTAL_UNVERIFIED",
+        description="Strict status: PORTAL_LIVE_VERIFIED, PORTAL_CLOSED_OR_EXPIRED, AUTH_WALL_REQUIRED, PORTAL_UNVERIFIED"
+    )
+    portal_health_detail: str = Field(
+        default="Destination could not be reached or confirmed.",
+        description="Detailed findings from destination portal stress-testing"
+    )
+

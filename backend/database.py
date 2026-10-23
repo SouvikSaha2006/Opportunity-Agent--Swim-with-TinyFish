@@ -37,11 +37,22 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         next_actions TEXT NOT NULL,
         ranking_score INTEGER NOT NULL,
         evidence_snippet TEXT NOT NULL,
-        is_live_data INTEGER NOT NULL DEFAULT 1
+        is_live_data INTEGER NOT NULL DEFAULT 1,
+        portal_health_status TEXT DEFAULT 'PORTAL_UNVERIFIED',
+        portal_health_detail TEXT DEFAULT 'Destination could not be reached or confirmed.'
     );
     """
     with get_db_connection(db_path) as conn:
         conn.execute(schema)
+        # Migrate existing tables if columns are missing
+        try:
+            conn.execute("ALTER TABLE saved_opportunities ADD COLUMN portal_health_status TEXT DEFAULT 'PORTAL_UNVERIFIED'")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE saved_opportunities ADD COLUMN portal_health_detail TEXT DEFAULT 'Destination could not be reached or confirmed.'")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
@@ -84,12 +95,14 @@ def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         id, title, organization, category, summary, deadline, location,
         work_mode, source_url, official_application_url, retrieved_at,
         eligibility_status, requirements_breakdown, match_explanation,
-        next_actions, ranking_score, evidence_snippet, is_live_data
+        next_actions, ranking_score, evidence_snippet, is_live_data,
+        portal_health_status, portal_health_detail
     ) VALUES (
         :id, :title, :organization, :category, :summary, :deadline, :location,
         :work_mode, :source_url, :official_application_url, :retrieved_at,
         :eligibility_status, :requirements_breakdown, :match_explanation,
-        :next_actions, :ranking_score, :evidence_snippet, :is_live_data
+        :next_actions, :ranking_score, :evidence_snippet, :is_live_data,
+        :portal_health_status, :portal_health_detail
     )
     ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
@@ -108,7 +121,9 @@ def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         next_actions = excluded.next_actions,
         ranking_score = excluded.ranking_score,
         evidence_snippet = excluded.evidence_snippet,
-        is_live_data = excluded.is_live_data;
+        is_live_data = excluded.is_live_data,
+        portal_health_status = excluded.portal_health_status,
+        portal_health_detail = excluded.portal_health_detail;
     """
 
     params = {
@@ -130,6 +145,8 @@ def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         "ranking_score": int(opp.get("ranking_score", 0)),
         "evidence_snippet": str(opp.get("evidence_snippet", "")),
         "is_live_data": is_live_data_val,
+        "portal_health_status": str(opp.get("portal_health_status", "PORTAL_UNVERIFIED")),
+        "portal_health_detail": str(opp.get("portal_health_detail", "Destination could not be reached or confirmed.")),
     }
 
     with get_db_connection(db_path) as conn:
@@ -164,6 +181,8 @@ def get_saved_opportunities(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, An
             item["next_actions"] = []
 
         item["is_live_data"] = bool(item.get("is_live_data", 1))
+        item["portal_health_status"] = item.get("portal_health_status") or "PORTAL_UNVERIFIED"
+        item["portal_health_detail"] = item.get("portal_health_detail") or "Destination could not be reached or confirmed."
         results.append(item)
 
     return results

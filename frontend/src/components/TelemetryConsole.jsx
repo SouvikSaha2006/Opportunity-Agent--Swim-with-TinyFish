@@ -31,6 +31,7 @@ export default function TelemetryConsole({ events = [], isStreaming = false, onC
     if (p.includes('SEARCH')) return { tag: '[SEARCH]', color: 'text-[#60A5FA] bg-[#0061FE]/15 border-[#0061FE]/40' };
     if (p.includes('FETCH')) return { tag: '[FETCH]', color: 'text-[#00F5B4] bg-[#00F5B4]/10 border-[#00F5B4]/30' };
     if (p.includes('EXTRACT') || p.includes('MARKDOWN')) return { tag: '[EXTRACT]', color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' };
+    if (p.includes('DEEP_AUDIT')) return { tag: '[DEEP_AUDIT]', color: 'text-[#00F5B4] bg-[#00F5B4]/15 border-[#00F5B4]/40 font-semibold' };
     if (p.includes('AUDIT')) return { tag: '[AUDIT]', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
     if (p.includes('RESULT')) return { tag: '[RESULTS]', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
     if (p.includes('ERROR')) return { tag: '[ERROR]', color: 'text-red-400 bg-red-500/15 border-red-500/40' };

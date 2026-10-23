@@ -15,6 +15,7 @@ import {
   Link2,
   FolderOpen
 } from 'lucide-react';
+import { getPortalHealthBadge } from './ResultsMatrix';
 
 export default function SavedShortlist({
   savedList = [],
@@ -165,6 +166,36 @@ export default function SavedShortlist({
                       <span>{opp.location || 'Global'}</span>
                     </span>
                   </div>
+
+                  {/* Portal Health Tactile Badge & Source Link */}
+                  {(() => {
+                    const portalBadge = getPortalHealthBadge(opp.portal_health_status);
+                    return (
+                      <div className="flex items-center space-x-2 pt-1 flex-wrap gap-y-1">
+                        {opp.source_url && (
+                          <a
+                            href={opp.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1 text-[11px] text-[#60A5FA] hover:underline"
+                            title="Open Source Link"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span className="truncate max-w-[180px]">
+                              {opp.source_url.replace(/^https?:\/\/(www\.)?/, '')}
+                            </span>
+                          </a>
+                        )}
+                        <span
+                          className={`inline-flex items-center space-x-1.5 px-2 py-0.5 rounded text-[10px] font-mono border ${portalBadge.badge}`}
+                          title={opp.portal_health_detail || portalBadge.label}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${portalBadge.dot}`} />
+                          <span>{portalBadge.label}</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Card Bottom: Action Buttons */}

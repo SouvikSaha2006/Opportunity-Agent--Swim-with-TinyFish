@@ -16,6 +16,7 @@ from backend.researcher import (
     build_search_query,
     search_opportunities,
     fetch_page_content,
+    verify_destination_portal,
     TINYFISH_API_KEY
 )
 from backend.matcher import score_and_audit
@@ -189,8 +190,32 @@ async def event_stream_generator(profile: StudentProfile):
                 "detail": f"No valid URL for {item_title}, using search snippet for audit.",
             })
 
+        # Deep Crawler: Autonomous Destination Inspection / Portal Stress-Tester
+        target_portal_url = item.get("official_application_url") or item_url or item.get("url", "")
+        portal_status = "PORTAL_UNVERIFIED"
+        portal_detail = "Destination could not be reached or confirmed."
+
+        if target_portal_url and target_portal_url.startswith("http"):
+            yield sse_message({
+                "type": "TELEMETRY",
+                "phase": "DEEP_AUDIT",
+                "detail": f"Testing destination portal responsiveness for {target_portal_url[:45]}...",
+                "target_url": target_portal_url
+            })
+            portal_status, portal_detail = await loop.run_in_executor(
+                None,
+                verify_destination_portal,
+                target_portal_url
+            )
+
         # Deterministic audit and scoring
-        record = score_and_audit(profile, item, page_markdown)
+        record = score_and_audit(
+            profile,
+            item,
+            page_markdown,
+            portal_health_status=portal_status,
+            portal_health_detail=portal_detail
+        )
         scored_records.append(record)
         await asyncio.sleep(0.05)
 
@@ -218,6 +243,10 @@ async def event_stream_generator(profile: StudentProfile):
         "total_results": len(scored_records),
         "likely_matches": sum(1 for r in scored_records if r.eligibility_status == "Likely Match")
     })
+
+
+# Alias matching feature specification
+run_research_stream = event_stream_generator
 
 
 @app.post("/api/research-stream", tags=["Research"])

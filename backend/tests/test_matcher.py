@@ -168,3 +168,81 @@ def test_sqlite_persistence_roundtrip(tmp_path, sample_student_profile):
     # Check empty
     remaining = database.get_saved_opportunities(db_path=db_file)
     assert len(remaining) == 0
+
+
+def test_portal_health_analysis_deterministic_rules():
+    """
+    Validates deterministic rules for portal stress-testing:
+    - Closed/expired forms
+    - Auth-walled portals
+    - Live verified portals
+    - Unverified fallback
+    """
+    from backend.researcher import analyze_portal_content, verify_destination_portal
+
+    # 1. Closed / Expired
+    closed_text = "Notice: The form is no longer accepting responses. Applications are closed."
+    status, detail = analyze_portal_content(closed_text)
+    assert status == "PORTAL_CLOSED_OR_EXPIRED"
+    assert "closed" in detail.lower()
+
+    # 2. Auth Wall
+    auth_text = "Google Devfolio SSO: Sign in to continue. Login required to view application."
+    status, detail = analyze_portal_content(auth_text)
+    assert status == "AUTH_WALL_REQUIRED"
+    assert "login" in detail.lower() or "wall" in detail.lower()
+
+    # 3. Live Verified
+    live_text = "Welcome to the 2026 Developer Grant! Register now and submit application before deadline."
+    status, detail = analyze_portal_content(live_text)
+    assert status == "PORTAL_LIVE_VERIFIED"
+    assert "active" in detail.lower() or "accepting" in detail.lower()
+
+    # 4. Fallback / Unverified
+    empty_status, _ = analyze_portal_content("")
+    assert empty_status == "PORTAL_UNVERIFIED"
+
+    unclear_status, _ = analyze_portal_content("Random blog post about software architecture.")
+    assert unclear_status == "PORTAL_UNVERIFIED"
+
+    # 5. Invalid URL handling in verify_destination_portal
+    invalid_status, _ = verify_destination_portal("not_a_valid_url")
+    assert invalid_status == "PORTAL_UNVERIFIED"
+
+
+def test_opportunity_record_with_portal_health_persistence(tmp_path, sample_student_profile):
+    """
+    Verifies that portal_health_status and portal_health_detail persist and
+    retrieve cleanly through SQLite.
+    """
+    db_file = str(tmp_path / "test_portal_health.db")
+    database.init_db(db_file)
+
+    search_result = {
+        "title": "Autonomous Hackathon 2026",
+        "url": "https://autonohack.org/apply",
+        "snippet": "Join our hackathon. Python developers welcome.",
+        "organization": "AutonoOrg"
+    }
+
+    record = score_and_audit(
+        sample_student_profile,
+        search_result,
+        "",
+        portal_health_status="PORTAL_LIVE_VERIFIED",
+        portal_health_detail="Registration active. No captcha or registration block detected on target form."
+    )
+
+    assert record.portal_health_status == "PORTAL_LIVE_VERIFIED"
+    assert "Registration active" in record.portal_health_detail
+
+    # Persist
+    database.save_opportunity(record.model_dump(), db_path=db_file)
+
+    # Fetch back
+    saved = database.get_saved_opportunities(db_path=db_file)
+    assert len(saved) == 1
+    retrieved = saved[0]
+    assert retrieved["portal_health_status"] == "PORTAL_LIVE_VERIFIED"
+    assert retrieved["portal_health_detail"] == "Registration active. No captcha or registration block detected on target form."
+

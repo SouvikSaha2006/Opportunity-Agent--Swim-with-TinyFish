@@ -18,6 +18,37 @@ import {
   Search
 } from 'lucide-react';
 
+// Tactile badges for destination portal health inspection
+export const getPortalHealthBadge = (status) => {
+  switch (status) {
+    case 'PORTAL_LIVE_VERIFIED':
+      return {
+        label: 'Live Form Verified',
+        dot: 'bg-[#059669]',
+        badge: 'bg-[#059669]/15 text-[#10B981] border-[#059669]/40',
+      };
+    case 'PORTAL_CLOSED_OR_EXPIRED':
+      return {
+        label: 'Application Closed',
+        dot: 'bg-[#EF4444]',
+        badge: 'bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/40',
+      };
+    case 'AUTH_WALL_REQUIRED':
+      return {
+        label: 'Sign-In Required',
+        dot: 'bg-[#F59E0B]',
+        badge: 'bg-[#F59E0B]/15 text-[#F59E0B] border-[#F59E0B]/40',
+      };
+    case 'PORTAL_UNVERIFIED':
+    default:
+      return {
+        label: 'Unverified Portal',
+        dot: 'bg-zinc-400',
+        badge: 'bg-zinc-800 text-zinc-400 border-zinc-700',
+      };
+  }
+};
+
 export default function ResultsMatrix({
   opportunities = [],
   selectedOpportunity,
@@ -175,6 +206,7 @@ export default function ResultsMatrix({
             const isSelected = selectedOpportunity?.id === opp.id;
             const isSaved = savedIds.has(opp.id);
             const badge = getEligibilityBadge(opp.eligibility_status);
+            const portalBadge = getPortalHealthBadge(opp.portal_health_status);
 
             return (
               <div
@@ -214,6 +246,15 @@ export default function ResultsMatrix({
                           <span>TinyFish Crawled</span>
                         </span>
                       )}
+
+                      {/* Destination Portal Health Status Badge */}
+                      <span
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded border flex items-center space-x-1.5 ${portalBadge.badge}`}
+                        title={opp.portal_health_detail || portalBadge.label}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${portalBadge.dot}`} />
+                        <span>{portalBadge.label}</span>
+                      </span>
                     </div>
 
                     {/* Title */}
@@ -246,6 +287,33 @@ export default function ResultsMatrix({
                         <span className="text-zinc-200 font-medium">{opp.location || 'Global'}</span>
                       </div>
                     </div>
+
+                    {/* Source Link with Tactile Portal Health Badge */}
+                    {opp.source_url && (
+                      <div className="flex items-center space-x-2 pt-1 flex-wrap gap-y-1">
+                        <a
+                          href={opp.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center space-x-1 text-[11px] text-[#60A5FA] hover:text-[#93C5FD] hover:underline"
+                          title="Open official destination link"
+                        >
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                          <span className="truncate max-w-[200px]">
+                            {opp.source_url.replace(/^https?:\/\/(www\.)?/, '')}
+                          </span>
+                        </a>
+
+                        <span
+                          className={`inline-flex items-center space-x-1.5 px-2 py-0.5 rounded text-[10px] font-mono border ${portalBadge.badge}`}
+                          title={opp.portal_health_detail || portalBadge.label}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${portalBadge.dot}`} />
+                          <span>{portalBadge.label}</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Right Column: Score Badge & Actions */}

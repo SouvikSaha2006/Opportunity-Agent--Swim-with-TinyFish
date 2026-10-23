@@ -16,7 +16,9 @@ import {
   FileText, 
   Compass, 
   Sparkles,
-  Link2
+  Link2,
+  ShieldCheck,
+  Activity
 } from 'lucide-react';
 
 export default function EvidenceDrawer({
@@ -81,6 +83,46 @@ export default function EvidenceDrawer({
       ? 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
       : 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30';
 
+  const getPortalHealthBadge = (status) => {
+    switch (status) {
+      case 'PORTAL_LIVE_VERIFIED':
+        return {
+          label: 'Live Form Verified',
+          dot: 'bg-[#059669]',
+          badge: 'bg-[#059669]/15 text-[#10B981] border-[#059669]/40',
+          border: 'border-l-4 border-l-[#059669]',
+          icon: <CheckCircle2 className="w-4 h-4 text-[#10B981]" />,
+        };
+      case 'PORTAL_CLOSED_OR_EXPIRED':
+        return {
+          label: 'Application Closed',
+          dot: 'bg-[#EF4444]',
+          badge: 'bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/40',
+          border: 'border-l-4 border-l-[#EF4444]',
+          icon: <XCircle className="w-4 h-4 text-[#EF4444]" />,
+        };
+      case 'AUTH_WALL_REQUIRED':
+        return {
+          label: 'Sign-In Required',
+          dot: 'bg-[#F59E0B]',
+          badge: 'bg-[#F59E0B]/15 text-[#F59E0B] border-[#F59E0B]/40',
+          border: 'border-l-4 border-l-[#F59E0B]',
+          icon: <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />,
+        };
+      case 'PORTAL_UNVERIFIED':
+      default:
+        return {
+          label: 'Unverified Portal',
+          dot: 'bg-zinc-400',
+          badge: 'bg-zinc-800 text-zinc-400 border-zinc-700',
+          border: 'border-l-4 border-l-zinc-600',
+          icon: <AlertTriangle className="w-4 h-4 text-zinc-400" />,
+        };
+    }
+  };
+
+  const portalHealth = getPortalHealthBadge(opportunity.portal_health_status);
+
   return (
     <div
       role="dialog"
@@ -113,6 +155,11 @@ export default function EvidenceDrawer({
 
               <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${badgeColor}`}>
                 {opportunity.eligibility_status}
+              </span>
+
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border inline-flex items-center space-x-1.5 ${portalHealth.badge}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${portalHealth.dot}`} />
+                <span>{portalHealth.label}</span>
               </span>
             </div>
 
@@ -197,6 +244,55 @@ export default function EvidenceDrawer({
             </h3>
             <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-xl p-3.5 text-xs text-zinc-200 leading-relaxed font-sans">
               {opportunity.match_explanation}
+            </div>
+          </div>
+
+          {/* Dedicated Section: Destination Form Audit */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs uppercase font-mono tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#0061FE]" />
+                <span>Destination Form Audit</span>
+              </h3>
+              <span className="text-[10px] font-mono text-zinc-500">
+                Autonomous Deep Inspection
+              </span>
+            </div>
+
+            <div className={`bg-[#191919] border border-[#2E2E2E] rounded-xl p-4 space-y-2.5 ${portalHealth.border}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center space-x-2">
+                  {portalHealth.icon}
+                  <span className="text-xs font-semibold text-white">
+                    Target Portal Responsiveness
+                  </span>
+                </div>
+                <span className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono border ${portalHealth.badge}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${portalHealth.dot}`} />
+                  <span>{portalHealth.label}</span>
+                </span>
+              </div>
+
+              <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                {opportunity.portal_health_detail || 'Destination could not be reached or confirmed.'}
+              </p>
+
+              {(opportunity.official_application_url || opportunity.source_url) && (
+                <div className="pt-2 border-t border-[#262626] flex items-center justify-between text-[11px] text-zinc-500 flex-wrap gap-1">
+                  <span className="truncate max-w-sm">
+                    Target: {opportunity.official_application_url || opportunity.source_url}
+                  </span>
+                  <a
+                    href={opportunity.official_application_url || opportunity.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#60A5FA] hover:underline flex items-center space-x-1 shrink-0"
+                  >
+                    <span>Inspect Target Form</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 

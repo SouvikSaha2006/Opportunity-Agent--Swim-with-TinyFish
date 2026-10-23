@@ -74,7 +74,9 @@ def _extract_evidence_snippet(corpus: str, keywords: List[str], max_len: int = 2
 def score_and_audit(
     profile: StudentProfile,
     search_result: Dict[str, Any],
-    page_markdown: str = ""
+    page_markdown: str = "",
+    portal_health_status: str = "PORTAL_UNVERIFIED",
+    portal_health_detail: str = "Destination could not be reached or confirmed."
 ) -> OpportunityRecord:
     """
     Deterministic rule-based matching engine & explanation builder.
@@ -312,5 +314,8 @@ def score_and_audit(
         next_actions=next_actions,
         ranking_score=ranking_score,
         evidence_snippet=evidence_snippet,
-        is_live_data=True
+        is_live_data=True,
+        portal_health_status=portal_health_status,
+        portal_health_detail=portal_health_detail
     )
+
