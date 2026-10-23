@@ -325,3 +325,135 @@ def test_keyword_delta_sqlite_persistence(tmp_path, sample_student_profile):
     assert "resume_keyword_fixes" in kd
     assert "micro_sprint_task" in kd
     assert "48 hours" in kd["micro_sprint_task"].lower()
+
+
+def test_temporal_drift_detection_stale_repost(sample_student_profile):
+    """
+    Feature 3: Verifies that listings referencing legacy years (<=2024)
+    with zero 2026 validation are flagged as stale reposts with -25 pts penalty.
+    """
+    from backend.models import AuthenticityAudit
+
+    search_result = {
+        "title": "National Coding League 2023 Hackathon",
+        "url": "https://random-blog.com/national-coding-league-2023",
+        "snippet": "Join our 2023 edition! Python, FastAPI and React developers welcome. Remote participation.",
+        "organization": "Coding League"
+    }
+    page_markdown = "# National Coding League 2023\nSubmission deadline: November 15, 2024.\nWork mode: Remote."
+
+    record = score_and_audit(sample_student_profile, search_result, page_markdown)
+
+    assert record.authenticity_audit is not None
+    assert isinstance(record.authenticity_audit, AuthenticityAudit)
+    assert record.authenticity_audit.is_stale_repost is True
+    assert record.authenticity_audit.credibility_flag == "SUSPECTED_EXPIRED"
+    assert record.authenticity_audit.temporal_warning is not None
+    assert "2023" in str(record.authenticity_audit.detected_years)
+    assert 2026 not in record.authenticity_audit.detected_years
+
+    # Raw score would be 100 (40 base + 30 skills + 15 mode + 15 deadline), penalized by 25 => 75
+    assert record.ranking_score == 75
+    assert "Temporal Penalty: -25 pts" in record.match_explanation
+
+
+def test_explicit_expired_text_detection(sample_student_profile):
+    """
+    Feature 3: Verifies detection of explicit expired phrases (e.g. 'Winners announced',
+    'Registration closed') triggering stale repost flag.
+    """
+    search_result = {
+        "title": "Global Innovation Challenge",
+        "url": "https://unstop.com/hackathons/global-innovation",
+        "snippet": "Global student hackathon. Winners announced on October 10.",
+        "organization": "Global Org"
+    }
+    page_markdown = "Event concluded. Winners announced for this year's hackathon."
+
+    record = score_and_audit(sample_student_profile, search_result, page_markdown)
+
+    assert record.authenticity_audit is not None
+    assert record.authenticity_audit.is_stale_repost is True
+    assert record.authenticity_audit.credibility_flag == "SUSPECTED_EXPIRED"
+    assert record.authenticity_audit.domain_authority_type == "AGGREGATOR_REPOST"
+
+
+def test_canonical_host_and_active_2026_verification(sample_student_profile):
+    """
+    Feature 3: Verifies that .edu, .gov, careers.*, or matching corporate domain
+    with 2026 dates is classified as CANONICAL_HOST and VERIFIED_CANONICAL.
+    """
+    search_result = {
+        "title": "Stanford AI Summer Research Fellowship 2026",
+        "url": "https://ai.stanford.edu/fellowship-2026",
+        "snippet": "Stanford University AI lab fellowship for 2026. Python, FastAPI, and React. Remote friendly.",
+        "organization": "Stanford University"
+    }
+    page_markdown = "Stanford AI Fellowship 2026. Application deadline: December 31, 2026. Remote."
+
+    record = score_and_audit(sample_student_profile, search_result, page_markdown)
+
+    assert record.authenticity_audit is not None
+    assert record.authenticity_audit.is_stale_repost is False
+    assert record.authenticity_audit.domain_authority_type == "CANONICAL_HOST"
+    assert record.authenticity_audit.credibility_flag == "VERIFIED_CANONICAL"
+    assert record.authenticity_audit.temporal_warning is None
+    assert 2026 in record.authenticity_audit.detected_years
+    assert record.ranking_score >= 80
+
+
+def test_aggregator_repost_classification(sample_student_profile):
+    """
+    Feature 3: Verifies that third-party aggregator domains (e.g., internshala, unstop)
+    are classified as AGGREGATOR_REPOST with THIRD_PARTY_REPOST flag when active for 2026.
+    """
+    search_result = {
+        "title": "FastAPI Web Developer Internship 2026",
+        "url": "https://internshala.com/internship/detail/fastapi-web-dev-2026",
+        "snippet": "2026 internship posting on Internshala. Python, FastAPI, and React required. Work from home.",
+        "organization": "TechCorp"
+    }
+    page_markdown = "Apply by November 20, 2026 on Internshala. Remote work mode."
+
+    record = score_and_audit(sample_student_profile, search_result, page_markdown)
+
+    assert record.authenticity_audit is not None
+    assert record.authenticity_audit.is_stale_repost is False
+    assert record.authenticity_audit.domain_authority_type == "AGGREGATOR_REPOST"
+    assert record.authenticity_audit.credibility_flag == "THIRD_PARTY_REPOST"
+
+
+def test_authenticity_audit_sqlite_persistence(tmp_path, sample_student_profile):
+    """
+    Feature 3: Verifies that authenticity_audit properly serializes and
+    deserializes to and from SQLite database.
+    """
+    db_file = str(tmp_path / "test_authenticity.db")
+    database.init_db(db_file)
+
+    search_result = {
+        "title": "Autonomous Systems Research 2026",
+        "url": "https://careers.mit.edu/openings/2026",
+        "snippet": "MIT Autonomous Systems opening for 2026. Python and React. Deadline December 1, 2026.",
+        "organization": "MIT"
+    }
+
+    record = score_and_audit(sample_student_profile, search_result, "Join us in 2026. Remote.")
+    assert record.authenticity_audit is not None
+
+    # Save to DB
+    database.save_opportunity(record.model_dump(), db_path=db_file)
+
+    # Retrieve from DB
+    saved = database.get_saved_opportunities(db_path=db_file)
+    assert len(saved) == 1
+    item = saved[0]
+
+    audit = item.get("authenticity_audit")
+    assert audit is not None
+    assert isinstance(audit, dict)
+    assert audit["is_stale_repost"] is False
+    assert audit["domain_authority_type"] == "CANONICAL_HOST"
+    assert audit["credibility_flag"] == "VERIFIED_CANONICAL"
+    assert 2026 in audit["detected_years"]
+

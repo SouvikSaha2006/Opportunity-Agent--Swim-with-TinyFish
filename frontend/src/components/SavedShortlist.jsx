@@ -14,8 +14,12 @@ import {
   Sparkles, 
   Link2, 
   FolderOpen,
-  Zap
+  Zap,
+  AlertOctagon,
+  ShieldCheck,
+  Share2
 } from 'lucide-react';
+
 import { getPortalHealthBadge } from './ResultsMatrix';
 
 export default function SavedShortlist({
@@ -127,10 +131,35 @@ export default function SavedShortlist({
                 {/* Card Top: Org, Status Badge, Score */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center space-x-1.5 text-xs font-semibold text-zinc-300 truncate">
-                      <Building2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                      <span className="truncate">{opp.organization}</span>
-                    </span>
+                    <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+                      <span className="flex items-center space-x-1.5 text-xs font-semibold text-zinc-300">
+                        <Building2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                        <span className="truncate max-w-[120px]">{opp.organization}</span>
+                      </span>
+
+                      {/* Feature 3: Authority Badge */}
+                      {opp.authenticity_audit?.domain_authority_type === 'CANONICAL_HOST' && (
+                        <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#1E40AF]/20 text-[#60A5FA] border border-[#1E40AF]/40">
+                          <ShieldCheck className="w-2.5 h-2.5 text-[#60A5FA]" />
+                          <span>Canonical</span>
+                        </span>
+                      )}
+                      {opp.authenticity_audit?.domain_authority_type === 'AGGREGATOR_REPOST' && (
+                        <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#3E3E3E]/40 text-zinc-300 border border-[#4E4E4E]">
+                          <Share2 className="w-2.5 h-2.5 text-zinc-400" />
+                          <span>Aggregator</span>
+                        </span>
+                      )}
+
+                      {/* Feature 3: Stale Repost Warning */}
+                      {opp.authenticity_audit?.is_stale_repost && (
+                        <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/40 font-semibold">
+                          <AlertOctagon className="w-2.5 h-2.5 text-[#EF4444]" />
+                          <span>Stale Repost</span>
+                        </span>
+                      )}
+                    </div>
+
 
                     <div className="flex items-center space-x-2 shrink-0">
                       <span className="font-mono text-xs font-bold bg-[#141414] px-2 py-0.5 rounded border border-[#2E2E2E] text-white">

@@ -26,8 +26,13 @@ import {
   Clock,
   ArrowUpRight,
   Flame,
-  Award
+  Award,
+  AlertOctagon,
+  Share2,
+  History,
+  Globe
 } from 'lucide-react';
+
 
 export default function EvidenceDrawer({
   opportunity,
@@ -525,8 +530,190 @@ export default function EvidenceDrawer({
             </div>
           </div>
 
+          {/* FEATURE 3: Trust & Temporal Audit (Staleness & Fake-Opportunity Radar) */}
+          {(() => {
+            const audit = opportunity.authenticity_audit;
+            if (!audit) return null;
+
+            // Credibility flag visual style helper
+            const getCredibilityConfig = (flag) => {
+              switch (flag) {
+                case 'VERIFIED_CANONICAL':
+                  return {
+                    label: 'Verified Canonical Source',
+                    pill: 'bg-[#00F5B4]/15 text-[#00F5B4] border-[#00F5B4]/40',
+                    icon: <ShieldCheck className="w-3.5 h-3.5 text-[#00F5B4]" />,
+                    border: 'border-[#00F5B4]/30',
+                    bg: 'bg-[#00F5B4]/5'
+                  };
+                case 'SUSPECTED_EXPIRED':
+                  return {
+                    label: 'Suspected Expired / Stale Repost',
+                    pill: 'bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/40 animate-pulse',
+                    icon: <AlertOctagon className="w-3.5 h-3.5 text-[#EF4444]" />,
+                    border: 'border-[#EF4444]/30',
+                    bg: 'bg-[#EF4444]/5'
+                  };
+                case 'THIRD_PARTY_REPOST':
+                default:
+                  return {
+                    label: 'Third-Party Aggregator Repost',
+                    pill: 'bg-[#3E3E3E]/50 text-zinc-300 border-[#505050]',
+                    icon: <Share2 className="w-3.5 h-3.5 text-zinc-400" />,
+                    border: 'border-[#3E3E3E]',
+                    bg: 'bg-[#1E1E1E]'
+                  };
+              }
+            };
+
+            const credConfig = getCredibilityConfig(audit.credibility_flag);
+
+            let hostDomain = '';
+            try {
+              if (opportunity.source_url) {
+                hostDomain = new URL(opportunity.source_url).hostname.replace(/^www\./, '');
+              }
+            } catch (e) {
+              hostDomain = opportunity.source_url || '';
+            }
+
+            return (
+              <div className="space-y-3 bg-[#181818] border border-[#2E2E2E] rounded-xl p-4 relative overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-[#2A2A2A]">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-md bg-[#1E40AF]/20 text-[#60A5FA] flex items-center justify-center">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                        Trust & Temporal Audit
+                      </h3>
+                      <p className="text-[11px] text-zinc-400">
+                        Staleness & Fake-Opportunity Radar • Canonical Domain Verification
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1E40AF]/20 text-[#60A5FA] border border-[#1E40AF]/40">
+                    Feature 3
+                  </span>
+                </div>
+
+                {/* Credibility Status & Domain Attribution Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Credibility Status */}
+                  <div className={`border rounded-lg p-3 space-y-1.5 ${credConfig.bg} ${credConfig.border}`}>
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block">
+                      Credibility Classification
+                    </span>
+                    <div className="flex items-center space-x-2 pt-0.5">
+                      <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold font-mono border ${credConfig.pill}`}>
+                        {credConfig.icon}
+                        <span>{credConfig.label}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Domain Attribution */}
+                  <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-lg p-3 space-y-1.5">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block">
+                      Domain Authority Attribution
+                    </span>
+                    <div className="flex items-center space-x-2 pt-0.5">
+                      {audit.domain_authority_type === 'CANONICAL_HOST' ? (
+                        <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold font-mono bg-[#1E40AF]/20 text-[#60A5FA] border border-[#1E40AF]/40">
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#60A5FA]" />
+                          <span>Primary Publisher (Canonical Host)</span>
+                        </span>
+                      ) : audit.domain_authority_type === 'AGGREGATOR_REPOST' ? (
+                        <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold font-mono bg-[#3E3E3E]/50 text-zinc-300 border border-[#4E4E4E]">
+                          <Share2 className="w-3.5 h-3.5 text-zinc-400" />
+                          <span>Aggregator Syndication</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold font-mono bg-[#2A2A2A] text-zinc-400 border border-[#3A3A3A]">
+                          <Globe className="w-3.5 h-3.5 text-zinc-400" />
+                          <span>Unknown Domain Origin</span>
+                        </span>
+                      )}
+                    </div>
+                    {hostDomain && (
+                      <p className="text-[11px] font-mono text-zinc-400 truncate pt-0.5">
+                        Domain: {hostDomain}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Year Anomaly Analysis */}
+                <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-[#60A5FA]" />
+                      <span>Year Anomaly Analysis</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      Operational Baseline: 2026
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                    {audit.detected_years && audit.detected_years.length > 0 ? (
+                      audit.detected_years.map((year) => {
+                        const isActiveTarget = year === 2026;
+                        const isLegacy = year <= 2024;
+                        return (
+                          <span
+                            key={year}
+                            className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono font-medium border ${
+                              isActiveTarget
+                                ? 'bg-[#00F5B4]/15 text-[#00F5B4] border-[#00F5B4]/40 font-bold'
+                                : isLegacy
+                                ? 'bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/40'
+                                : 'bg-[#2A2A2A] text-zinc-300 border-[#3A3A3A]'
+                            }`}
+                          >
+                            {isActiveTarget ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#00F5B4]" />
+                            ) : isLegacy ? (
+                              <AlertOctagon className="w-3.5 h-3.5 text-[#EF4444]" />
+                            ) : (
+                              <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                            )}
+                            <span>
+                              {year} {isActiveTarget ? '(Active 2026 Target)' : isLegacy ? '(Legacy Timestamp)' : ''}
+                            </span>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-xs text-zinc-500 italic">
+                        No calendar year references detected in opportunity corpus.
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Temporal Warning Box */}
+                {audit.temporal_warning && (
+                  <div className="bg-[#2D1515] border border-[#EF4444]/50 rounded-lg p-3 space-y-1.5 text-xs text-[#FCA5A5] leading-relaxed">
+                    <div className="flex items-center space-x-2 font-bold text-[#EF4444] uppercase font-mono text-[11px] tracking-wider">
+                      <AlertOctagon className="w-4 h-4 shrink-0" />
+                      <span>Temporal Warning • High Stale Repost Risk</span>
+                    </div>
+                    <p className="font-sans pl-6">{audit.temporal_warning}</p>
+                    <p className="text-[11px] text-zinc-400 pl-6 italic">
+                      Advisory: This opportunity contains legacy or expired temporal signals with no verified 2026 renewal. Please inspect host archives before submitting applications.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Section 1: Deterministic Requirement Breakdown */}
           <div className="space-y-3">
+
             <div className="flex items-center justify-between">
               <h3 className="text-xs uppercase font-mono tracking-wider text-zinc-400 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-[#0061FE]" />

@@ -58,6 +58,29 @@ class KeywordDelta(BaseModel):
     )
 
 
+class AuthenticityAudit(BaseModel):
+    is_stale_repost: bool = Field(
+        ...,
+        description="Flag indicating if the listing appears to be an expired or stale repost"
+    )
+    detected_years: List[int] = Field(
+        default_factory=list,
+        description="Calendar years detected across title, snippet, and fetched markdown"
+    )
+    domain_authority_type: str = Field(
+        ...,
+        description="Domain classification: CANONICAL_HOST, AGGREGATOR_REPOST, or UNKNOWN"
+    )
+    temporal_warning: Optional[str] = Field(
+        default=None,
+        description="Warning message explaining temporal drift or legacy dates if detected"
+    )
+    credibility_flag: str = Field(
+        ...,
+        description="Overall credibility flag: VERIFIED_CANONICAL, THIRD_PARTY_REPOST, or SUSPECTED_EXPIRED"
+    )
+
+
 class OpportunityRecord(BaseModel):
     id: str = Field(..., description="Unique identifier for opportunity")
     title: str = Field(..., description="Title of competition or internship")
@@ -114,3 +137,8 @@ class OpportunityRecord(BaseModel):
         default=None,
         description="Skill & keyword delta matrix with CV keyword fixes and 48-hour micro-sprint"
     )
+    authenticity_audit: Optional[AuthenticityAudit] = Field(
+        default=None,
+        description="Authenticity and temporal drift audit"
+    )
+

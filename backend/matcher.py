@@ -4,7 +4,14 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple, Optional
 from urllib.parse import urlparse
 
-from backend.models import StudentProfile, RequirementItem, OpportunityRecord, MicroSprint, KeywordDelta
+from backend.models import (
+    StudentProfile,
+    RequirementItem,
+    OpportunityRecord,
+    MicroSprint,
+    KeywordDelta,
+    AuthenticityAudit,
+)
 
 
 TECH_SKILL_CATALOG: Dict[str, str] = {
@@ -272,6 +279,90 @@ def compute_keyword_delta(
     )
 
 
+KNOWN_AGGREGATOR_DOMAINS: List[str] = [
+    "internshala", "unstop", "geeksforgeeks", "linkedin", "indeed",
+    "naukri", "medium", "reddit", "glassdoor", "wellfound", "ycombinator", "angel.co"
+]
+
+EXPIRED_PATTERNS: List[str] = [
+    r"(?i)\bregistration\s+(?:is\s+|was\s+)?closed(?:\s+in\s+202[0-4])?\b",
+    r"(?i)\bapplications?\s+(?:are\s+|have\s+|were\s+)?closed(?:\s+in\s+202[0-4])?\b",
+    r"(?i)\bwinners\s+announced\b",
+    r"(?i)\bevent\s+concluded\b",
+    r"(?i)\bhackathon\s+concluded\b",
+    r"(?i)\bsubmission\s+(?:is\s+|was\s+)?closed\b",
+]
+
+
+def compute_authenticity_audit(
+    corpus: str,
+    source_url: str,
+    org_name: str = ""
+) -> Tuple[AuthenticityAudit, int]:
+    """
+    Evaluates temporal drift and domain canonical authority:
+    - Extracts year tokens (2020-2029).
+    - Checks for stale repost indicators (legacy years <= 2024 with zero 2026 validation or expired phrases).
+    - Classifies source hostname into CANONICAL_HOST, AGGREGATOR_REPOST, or UNKNOWN.
+    - Assigns credibility_flag: VERIFIED_CANONICAL, THIRD_PARTY_REPOST, or SUSPECTED_EXPIRED.
+    Returns (AuthenticityAudit, score_penalty).
+    """
+    # 1. Year parsing
+    year_matches = re.findall(r"\b(202[0-9])\b", corpus)
+    detected_years = sorted(list({int(y) for y in year_matches}))
+
+    has_legacy_years = any(y <= 2024 for y in detected_years)
+    has_2026 = 2026 in detected_years
+    has_expired_text = any(re.search(pat, corpus) for pat in EXPIRED_PATTERNS)
+
+    is_stale_repost = False
+    temporal_warning = None
+    penalty = 0
+
+    if (has_legacy_years and not has_2026) or has_expired_text:
+        is_stale_repost = True
+        temporal_warning = "Listing references legacy 2023/2024 dates with zero 2026 active validation. High probability of stale repost."
+        penalty = 25
+
+    # 2. Domain classification
+    parsed_host = urlparse(source_url).netloc.lower().split(":")[0]
+    if parsed_host.startswith("www."):
+        parsed_host = parsed_host[4:]
+
+    org_clean = re.sub(r"[^a-z0-9]", "", org_name.lower()) if org_name else ""
+
+    if any(agg in parsed_host for agg in KNOWN_AGGREGATOR_DOMAINS):
+        domain_authority_type = "AGGREGATOR_REPOST"
+    elif (
+        parsed_host.endswith(".edu") or ".edu." in parsed_host or
+        parsed_host.endswith(".ac.in") or ".ac.in." in parsed_host or
+        parsed_host.endswith(".gov") or ".gov." in parsed_host or
+        parsed_host.startswith("careers.") or ".careers." in parsed_host or
+        parsed_host.startswith("jobs.") or ".jobs." in parsed_host or
+        (org_clean and len(org_clean) >= 3 and org_clean in parsed_host.replace(".", ""))
+    ):
+        domain_authority_type = "CANONICAL_HOST"
+    else:
+        domain_authority_type = "UNKNOWN"
+
+    # 3. Credibility flag
+    if is_stale_repost:
+        credibility_flag = "SUSPECTED_EXPIRED"
+    elif domain_authority_type == "CANONICAL_HOST":
+        credibility_flag = "VERIFIED_CANONICAL"
+    else:
+        credibility_flag = "THIRD_PARTY_REPOST"
+
+    audit = AuthenticityAudit(
+        is_stale_repost=is_stale_repost,
+        detected_years=detected_years,
+        domain_authority_type=domain_authority_type,
+        temporal_warning=temporal_warning,
+        credibility_flag=credibility_flag
+    )
+    return audit, penalty
+
+
 def score_and_audit(
     profile: StudentProfile,
     search_result: Dict[str, Any],
@@ -433,9 +524,22 @@ def score_and_audit(
         )
     )
 
-    # Total Score Calculation
-    total_score = base_score + skill_score + work_mode_score + deadline_score
-    ranking_score = max(0, min(100, total_score))
+    # Organization extraction
+    org = search_result.get("organization") or search_result.get("site_name")
+    if not org:
+        parsed_domain = urlparse(source_url).netloc
+        org = parsed_domain.replace("www.", "").capitalize() if parsed_domain else "Opportunity Host"
+
+    # Feature 3: Authenticity & Temporal Drift Radar
+    authenticity_audit, staleness_penalty = compute_authenticity_audit(
+        corpus=audit_corpus,
+        source_url=source_url,
+        org_name=org
+    )
+
+    # Total Score Calculation (with temporal penalty)
+    raw_total_score = base_score + skill_score + work_mode_score + deadline_score
+    ranking_score = max(0, min(100, raw_total_score - staleness_penalty))
 
     # Categorize Status
     if ranking_score >= 70:
@@ -452,12 +556,8 @@ def score_and_audit(
         f"Work mode: {work_mode_score}/15 ({mode_status}), "
         f"Deadline verification: {deadline_score}/15 ({deadline_status})."
     )
-
-    # Organization extraction
-    org = search_result.get("organization") or search_result.get("site_name")
-    if not org:
-        parsed_domain = urlparse(source_url).netloc
-        org = parsed_domain.replace("www.", "").capitalize() if parsed_domain else "Opportunity Host"
+    if authenticity_audit.is_stale_repost:
+        match_explanation += f" Temporal Penalty: -{staleness_penalty} pts ({authenticity_audit.credibility_flag})."
 
     # Category determination
     lower_title = title.lower()
@@ -527,5 +627,7 @@ def score_and_audit(
         is_live_data=True,
         portal_health_status=portal_health_status,
         portal_health_detail=portal_health_detail,
-        keyword_delta=keyword_delta
+        keyword_delta=keyword_delta,
+        authenticity_audit=authenticity_audit
     )
+

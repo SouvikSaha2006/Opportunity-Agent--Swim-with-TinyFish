@@ -87,6 +87,13 @@ Transforms Opportunity Agent into a career-acceleration engine:
 - **ATS Resume Keyword Fixes:** Generates actionable bullet optimizations to tailor CVs directly to host company expectations.
 - **48-Hour Micro-Sprint Challenge:** Formulates a concrete, phased 48-hour challenge (Hour 0-12, 12-24, 24-36, 36-48) with tangible proof-of-work deliverables (public GitHub repo, automated tests, benchmarks, and demo links).
 
+### 9. Feature 3: Staleness & Fake-Opportunity Radar (Temporal Drift Detector)
+Protects students from expired reposts, stale aggregators, and fraudulent listings:
+- **Temporal Anomaly Detection:** Scans for legacy calendar timestamps (e.g. `<= 2024` with zero `2026` renewal) and explicit expired phrases ("Registration closed", "Winners announced"). Applies a deterministic -25 point penalty and flags as `SUSPECTED_EXPIRED`.
+- **Domain Authority Classification:** Classifies source URLs into `CANONICAL_HOST` (verified direct educational or corporate domain) vs. `AGGREGATOR_REPOST` (third-party syndicate or forum) vs. `UNKNOWN`.
+- **Evidence Drawer Trust Audit:** Dedicated Dropbox-styled card surfacing credibility status pills, detected calendar year badges with active 2026 indicators, host attribution, and high-visibility temporal warning alert banners.
+
+
 ---
 
 ## 🏗️ System Architecture

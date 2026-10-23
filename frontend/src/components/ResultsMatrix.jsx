@@ -16,8 +16,12 @@ import {
   Globe2, 
   Sparkles, 
   Search,
-  Zap
+  Zap,
+  AlertOctagon,
+  ShieldCheck,
+  Share2
 } from 'lucide-react';
+
 
 // Tactile badges for destination portal health inspection
 export const getPortalHealthBadge = (status) => {
@@ -236,10 +240,41 @@ export default function ResultsMatrix({
                         <span>{opp.organization}</span>
                       </span>
 
+                      {/* Feature 3: Authority Badge alongside organization */}
+                      {opp.authenticity_audit?.domain_authority_type === 'CANONICAL_HOST' && (
+                        <span
+                          className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono bg-[#1E40AF]/20 text-[#60A5FA] border border-[#1E40AF]/40"
+                          title="Canonical Host: Verified direct corporate or academic institution source"
+                        >
+                          <ShieldCheck className="w-3 h-3 text-[#60A5FA]" />
+                          <span>Canonical Host</span>
+                        </span>
+                      )}
+                      {opp.authenticity_audit?.domain_authority_type === 'AGGREGATOR_REPOST' && (
+                        <span
+                          className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono bg-[#3E3E3E]/40 text-zinc-300 border border-[#4E4E4E]"
+                          title="Aggregator Repost: Third-party job board or community syndication"
+                        >
+                          <Share2 className="w-3 h-3 text-zinc-400" />
+                          <span>Aggregator Repost</span>
+                        </span>
+                      )}
+
                       {/* Category Pill */}
                       <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-[#272727] text-zinc-300 border border-[#383838]">
                         {opp.category}
                       </span>
+
+                      {/* Feature 3: Stale Repost Warning Badge */}
+                      {opp.authenticity_audit?.is_stale_repost && (
+                        <span
+                          className="text-[10px] font-mono px-2 py-0.5 rounded border flex items-center space-x-1.5 bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/40 font-semibold"
+                          title={opp.authenticity_audit.temporal_warning || "Past year detected with zero 2026 validation"}
+                        >
+                          <AlertOctagon className="w-3 h-3 text-[#EF4444] shrink-0" />
+                          <span>Stale Repost Warning (Past Year Detected)</span>
+                        </span>
+                      )}
 
                       {/* Live Data Badge */}
                       {opp.is_live_data && (
@@ -273,6 +308,7 @@ export default function ResultsMatrix({
                         </span>
                       )}
                     </div>
+
 
                     {/* Title */}
                     <h3 className="text-base font-bold text-white tracking-tight group-hover:text-[#60A5FA] transition-colors">
