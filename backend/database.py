@@ -39,7 +39,8 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         evidence_snippet TEXT NOT NULL,
         is_live_data INTEGER NOT NULL DEFAULT 1,
         portal_health_status TEXT DEFAULT 'PORTAL_UNVERIFIED',
-        portal_health_detail TEXT DEFAULT 'Destination could not be reached or confirmed.'
+        portal_health_detail TEXT DEFAULT 'Destination could not be reached or confirmed.',
+        keyword_delta TEXT
     );
     """
     with get_db_connection(db_path) as conn:
@@ -53,19 +54,22 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
             conn.execute("ALTER TABLE saved_opportunities ADD COLUMN portal_health_detail TEXT DEFAULT 'Destination could not be reached or confirmed.'")
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute("ALTER TABLE saved_opportunities ADD COLUMN keyword_delta TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
 def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     """
     Persists an opportunity record into the database.
-    Serializes nested lists (requirements_breakdown, next_actions) into JSON strings.
+    Serializes nested lists and models into JSON strings.
     """
     init_db(db_path)
 
     requirements_breakdown = opp.get("requirements_breakdown", [])
     if isinstance(requirements_breakdown, (list, tuple)):
-        # Convert any Pydantic models or dicts to json-compatible serializable objects
         serializable_reqs = []
         for item in requirements_breakdown:
             if hasattr(item, "model_dump"):
@@ -88,6 +92,16 @@ def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
     else:
         actions_json = json.dumps([])
 
+    keyword_delta = opp.get("keyword_delta")
+    if hasattr(keyword_delta, "model_dump"):
+        kd_json = json.dumps(keyword_delta.model_dump())
+    elif isinstance(keyword_delta, dict):
+        kd_json = json.dumps(keyword_delta)
+    elif isinstance(keyword_delta, str):
+        kd_json = keyword_delta
+    else:
+        kd_json = None
+
     is_live_data_val = 1 if opp.get("is_live_data", True) else 0
 
     query = """
@@ -96,13 +110,13 @@ def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         work_mode, source_url, official_application_url, retrieved_at,
         eligibility_status, requirements_breakdown, match_explanation,
         next_actions, ranking_score, evidence_snippet, is_live_data,
-        portal_health_status, portal_health_detail
+        portal_health_status, portal_health_detail, keyword_delta
     ) VALUES (
         :id, :title, :organization, :category, :summary, :deadline, :location,
         :work_mode, :source_url, :official_application_url, :retrieved_at,
         :eligibility_status, :requirements_breakdown, :match_explanation,
         :next_actions, :ranking_score, :evidence_snippet, :is_live_data,
-        :portal_health_status, :portal_health_detail
+        :portal_health_status, :portal_health_detail, :keyword_delta
     )
     ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
@@ -123,7 +137,8 @@ def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         evidence_snippet = excluded.evidence_snippet,
         is_live_data = excluded.is_live_data,
         portal_health_status = excluded.portal_health_status,
-        portal_health_detail = excluded.portal_health_detail;
+        portal_health_detail = excluded.portal_health_detail,
+        keyword_delta = excluded.keyword_delta;
     """
 
     params = {
@@ -147,6 +162,7 @@ def save_opportunity(opp: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dic
         "is_live_data": is_live_data_val,
         "portal_health_status": str(opp.get("portal_health_status", "PORTAL_UNVERIFIED")),
         "portal_health_detail": str(opp.get("portal_health_detail", "Destination could not be reached or confirmed.")),
+        "keyword_delta": kd_json,
     }
 
     with get_db_connection(db_path) as conn:
@@ -169,7 +185,6 @@ def get_saved_opportunities(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, An
     results: List[Dict[str, Any]] = []
     for row in rows:
         item = dict(row)
-        # Deserialize JSON arrays
         try:
             item["requirements_breakdown"] = json.loads(item["requirements_breakdown"])
         except (json.JSONDecodeError, TypeError):
@@ -179,6 +194,12 @@ def get_saved_opportunities(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, An
             item["next_actions"] = json.loads(item["next_actions"])
         except (json.JSONDecodeError, TypeError):
             item["next_actions"] = []
+
+        if item.get("keyword_delta"):
+            try:
+                item["keyword_delta"] = json.loads(item["keyword_delta"])
+            except (json.JSONDecodeError, TypeError):
+                pass
 
         item["is_live_data"] = bool(item.get("is_live_data", 1))
         item["portal_health_status"] = item.get("portal_health_status") or "PORTAL_UNVERIFIED"

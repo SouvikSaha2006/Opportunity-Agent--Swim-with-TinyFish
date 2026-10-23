@@ -10,12 +10,13 @@ import {
   ExternalLink, 
   Bookmark, 
   BookmarkCheck, 
-  ArrowRight,
-  Filter,
-  Check,
-  Globe2,
-  Sparkles,
-  Search
+  ArrowRight, 
+  Filter, 
+  Check, 
+  Globe2, 
+  Sparkles, 
+  Search,
+  Zap
 } from 'lucide-react';
 
 // Tactile badges for destination portal health inspection
@@ -207,6 +208,7 @@ export default function ResultsMatrix({
             const isSaved = savedIds.has(opp.id);
             const badge = getEligibilityBadge(opp.eligibility_status);
             const portalBadge = getPortalHealthBadge(opp.portal_health_status);
+            const kd = opp.keyword_delta;
 
             return (
               <div
@@ -255,6 +257,21 @@ export default function ResultsMatrix({
                         <span className={`w-1.5 h-1.5 rounded-full ${portalBadge.dot}`} />
                         <span>{portalBadge.label}</span>
                       </span>
+
+                      {/* Feature 2: Keyword Delta Pill */}
+                      {kd && (
+                        <span
+                          className="text-[10px] font-mono px-2 py-0.5 rounded border flex items-center space-x-1 bg-[#1C1F2E] text-[#60A5FA] border-[#0061FE]/30"
+                          title={`Matched: ${kd.matched_keywords?.join(', ') || 'None'} | Missing: ${kd.missing_prerequisites?.join(', ') || 'None'}`}
+                        >
+                          <Zap className="w-2.5 h-2.5 text-[#0061FE]" />
+                          <span>
+                            {kd.missing_prerequisites?.length > 0
+                              ? `${kd.missing_prerequisites.length} Skill Gap`
+                              : 'All Skills Matched'}
+                          </span>
+                        </span>
+                      )}
                     </div>
 
                     {/* Title */}

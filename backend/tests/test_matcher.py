@@ -246,3 +246,82 @@ def test_opportunity_record_with_portal_health_persistence(tmp_path, sample_stud
     assert retrieved["portal_health_status"] == "PORTAL_LIVE_VERIFIED"
     assert retrieved["portal_health_detail"] == "Registration active. No captcha or registration block detected on target form."
 
+
+
+def test_keyword_delta_matrix_generation(sample_student_profile):
+    """
+    Feature 2: Skill & Keyword Delta Matrix test.
+    Verifies matched_keywords, missing_prerequisites, resume_keyword_fixes,
+    and 48-Hour Micro-Sprint generation.
+    """
+    from backend.models import KeywordDelta, MicroSprint
+
+    search_result = {
+        "title": "Cloud Systems & AI Engineering Hackathon 2026",
+        "url": "https://cloud-ai-hack.dev",
+        "snippet": "Looking for Python and FastAPI developers. Tech stack: Docker, PostgreSQL, Redis, and React.",
+        "organization": "CloudScale Foundation"
+    }
+    page_markdown = "Requirements: Python, FastAPI, Docker, and PostgreSQL. Must deploy containerized microservice."
+
+    record = score_and_audit(sample_student_profile, search_result, page_markdown)
+
+    assert record.keyword_delta is not None
+    assert isinstance(record.keyword_delta, KeywordDelta)
+
+    # Matched keywords should include Python and FastAPI
+    matched = record.keyword_delta.matched_keywords
+    assert "Python" in matched
+    assert "FastAPI" in matched
+
+    # Missing prerequisites should include Docker and PostgreSQL
+    missing = record.keyword_delta.missing_prerequisites
+    assert "Docker" in missing or "PostgreSQL" in missing
+
+    # Resume keyword fixes
+    fixes = record.keyword_delta.resume_keyword_fixes
+    assert len(fixes) >= 2
+    assert any("resume" in f.lower() or "replace" in f.lower() or "add" in f.lower() or "skills" in f.lower() for f in fixes)
+
+    # 48-Hour Micro-Sprint
+    assert "48 hours" in record.keyword_delta.micro_sprint_task.lower()
+    assert record.keyword_delta.micro_sprint is not None
+    assert isinstance(record.keyword_delta.micro_sprint, MicroSprint)
+    assert record.keyword_delta.micro_sprint.duration == "48 Hours"
+    assert len(record.keyword_delta.micro_sprint.steps) == 4
+
+
+def test_keyword_delta_sqlite_persistence(tmp_path, sample_student_profile):
+    """
+    Feature 2: Verifies that keyword_delta serializes and deserializes
+    accurately through SQLite.
+    """
+    db_file = str(tmp_path / "test_keyword_delta.db")
+    database.init_db(db_file)
+
+    search_result = {
+        "title": "Full-Stack Internship",
+        "url": "https://fs-intern.com/apply",
+        "snippet": "Full stack internship requiring Python, React, Docker, and Kubernetes.",
+        "organization": "DevCorp"
+    }
+
+    record = score_and_audit(sample_student_profile, search_result, "We use Docker and Kubernetes.")
+    assert record.keyword_delta is not None
+
+    # Save to SQLite
+    database.save_opportunity(record.model_dump(), db_path=db_file)
+
+    # Retrieve back
+    saved_list = database.get_saved_opportunities(db_path=db_file)
+    assert len(saved_list) == 1
+    saved_item = saved_list[0]
+
+    kd = saved_item.get("keyword_delta")
+    assert kd is not None
+    assert isinstance(kd, dict)
+    assert "matched_keywords" in kd
+    assert "missing_prerequisites" in kd
+    assert "resume_keyword_fixes" in kd
+    assert "micro_sprint_task" in kd
+    assert "48 hours" in kd["micro_sprint_task"].lower()

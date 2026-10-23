@@ -4,7 +4,74 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple, Optional
 from urllib.parse import urlparse
 
-from backend.models import StudentProfile, RequirementItem, OpportunityRecord
+from backend.models import StudentProfile, RequirementItem, OpportunityRecord, MicroSprint, KeywordDelta
+
+
+TECH_SKILL_CATALOG: Dict[str, str] = {
+    "python": "Python",
+    "fastapi": "FastAPI",
+    "flask": "Flask",
+    "django": "Django",
+    "react": "React",
+    "nextjs": "Next.js",
+    "next.js": "Next.js",
+    "vue": "Vue.js",
+    "angular": "Angular",
+    "typescript": "TypeScript",
+    "javascript": "JavaScript",
+    "node": "Node.js",
+    "nodejs": "Node.js",
+    "node.js": "Node.js",
+    "express": "Express",
+    "pytorch": "PyTorch",
+    "tensorflow": "TensorFlow",
+    "keras": "Keras",
+    "scikit-learn": "Scikit-Learn",
+    "sklearn": "Scikit-Learn",
+    "pandas": "Pandas",
+    "numpy": "NumPy",
+    "sql": "SQL",
+    "postgresql": "PostgreSQL",
+    "postgres": "PostgreSQL",
+    "mysql": "MySQL",
+    "mongodb": "MongoDB",
+    "redis": "Redis",
+    "docker": "Docker",
+    "kubernetes": "Kubernetes",
+    "k8s": "Kubernetes",
+    "aws": "AWS",
+    "azure": "Azure",
+    "gcp": "Google Cloud",
+    "git": "Git",
+    "github": "GitHub",
+    "ci/cd": "CI/CD",
+    "graphql": "GraphQL",
+    "restful apis": "RESTful APIs",
+    "rest api": "RESTful APIs",
+    "rest": "RESTful APIs",
+    "c++": "C++",
+    "cpp": "C++",
+    "c#": "C#",
+    "java": "Java",
+    "golang": "Go",
+    "go": "Go",
+    "rust": "Rust",
+    "langchain": "LangChain",
+    "llamaindex": "LlamaIndex",
+    "rag": "RAG",
+    "llms": "LLMs",
+    "llm": "LLMs",
+    "nlp": "NLP",
+    "computer vision": "Computer Vision",
+    "opencv": "OpenCV",
+    "linux": "Linux",
+    "tailwind": "Tailwind CSS",
+    "tailwindcss": "Tailwind CSS",
+    "flutter": "Flutter",
+    "kotlin": "Kotlin",
+    "swift": "Swift",
+    "kafka": "Apache Kafka",
+}
 
 
 def _extract_deadline(corpus: str) -> Tuple[Optional[str], Optional[str]]:
@@ -71,6 +138,140 @@ def _extract_evidence_snippet(corpus: str, keywords: List[str], max_len: int = 2
     return corpus[:max_len] if corpus else "Evidence extracted from primary source."
 
 
+def compute_keyword_delta(
+    profile: StudentProfile,
+    corpus: str,
+    matched_skills: List[str],
+    opportunity_title: str = "",
+    opportunity_category: str = ""
+) -> KeywordDelta:
+    """
+    Computes deterministic Skill & Keyword Delta Matrix:
+    - matched_keywords: Student skills validated against opportunity listing.
+    - missing_prerequisites: In-demand technologies mentioned in listing but absent from profile.
+    - resume_keyword_fixes: Actionable resume keyword optimizations for ATS alignment.
+    - micro_sprint_task: Concrete 48-Hour challenge to bridge unverified competencies.
+    """
+    student_skills_set = {s.strip().lower() for s in (profile.skills or []) if s.strip()}
+
+    # 1. Detect all technical skills present in listing corpus
+    found_listing_skills: Dict[str, str] = {}
+    for token, canonical in TECH_SKILL_CATALOG.items():
+        escaped = re.escape(token)
+        pattern = rf"(?i)(?:\b|(?<=[^a-zA-Z0-9])){escaped}(?:\b|(?=[^a-zA-Z0-9]))"
+        if re.search(pattern, corpus):
+            found_listing_skills[canonical.lower()] = canonical
+
+    # 2. Compute matched keywords (preserving canonical casing)
+    matched_set = set()
+    matched_list: List[str] = []
+
+    for s in matched_skills:
+        canonical = TECH_SKILL_CATALOG.get(s.lower(), s.strip())
+        if canonical not in matched_set:
+            matched_set.add(canonical)
+            matched_list.append(canonical)
+
+    for s in (profile.skills or []):
+        s_lower = s.strip().lower()
+        if s_lower in found_listing_skills:
+            canonical = found_listing_skills[s_lower]
+            if canonical not in matched_set:
+                matched_set.add(canonical)
+                matched_list.append(canonical)
+
+    # 3. Compute missing prerequisites
+    missing_prereqs_list: List[str] = []
+    for s_lower, canonical in found_listing_skills.items():
+        if s_lower not in student_skills_set and canonical not in matched_set:
+            if canonical not in missing_prereqs_list:
+                missing_prereqs_list.append(canonical)
+
+    # Contextual domain fallbacks if listing text mentions few explicit technologies
+    if len(missing_prereqs_list) < 2:
+        is_ml_ai = any(kw in corpus.lower() or kw in opportunity_title.lower() for kw in ["ai", "agent", "llm", "ml", "learning", "data"])
+        domain_fallbacks = ["Docker", "RESTful APIs", "Git", "PostgreSQL"] if not is_ml_ai else ["PyTorch", "RAG", "LangChain", "Docker"]
+        for fb in domain_fallbacks:
+            if fb.lower() not in student_skills_set and fb not in matched_set and fb not in missing_prereqs_list:
+                missing_prereqs_list.append(fb)
+                if len(missing_prereqs_list) >= 3:
+                    break
+
+    missing_prerequisites = missing_prereqs_list[:4]
+
+    # 4. Generate actionable resume keyword fixes
+    fixes: List[str] = []
+    if missing_prerequisites:
+        top_missing = missing_prerequisites[0]
+        if top_missing in ["RESTful APIs", "FastAPI", "Express", "Node.js"]:
+            fixes.append(f"Replace generic 'Backend Dev' with explicit '{top_missing} & OpenAPI specifications'")
+        elif top_missing in ["PostgreSQL", "SQL", "MongoDB", "Redis"]:
+            fixes.append(f"Replace 'Database knowledge' with '{top_missing} (Schema design & query optimization)'")
+        elif top_missing in ["Docker", "Kubernetes", "CI/CD"]:
+            fixes.append(f"Add '{top_missing} Containerization' under Technical Skills & project deployments")
+        elif top_missing in ["PyTorch", "TensorFlow", "RAG", "LangChain"]:
+            fixes.append(f"Upgrade generic 'AI/ML' bullet to specify '{top_missing} pipeline implementation'")
+        else:
+            fixes.append(f"Explicitly index '{top_missing}' under Technical Skills on your resume")
+
+    if len(missing_prerequisites) > 1:
+        second_missing = missing_prerequisites[1]
+        fixes.append(f"Highlight '{second_missing}' in your most recent project description for ATS matching")
+
+    if matched_list:
+        fixes.append(f"Prominently position validated skill '{matched_list[0]}' in the first 3 lines of your CV summary")
+    else:
+        fixes.append("Re-align project keywords with the host organization's technical stack requirements")
+
+    # 5. Formulate 48-Hour Micro-Sprint Task & Breakdown
+    target_skill_str = ", ".join(missing_prerequisites[:2]) if missing_prerequisites else (matched_list[0] if matched_list else "Full-Stack")
+
+    if missing_prerequisites:
+        primary_gap = missing_prerequisites[0]
+        secondary_gap = missing_prerequisites[1] if len(missing_prerequisites) > 1 else "clean architecture"
+        sprint_title = f"48-Hour Micro-Sprint: {primary_gap} & {secondary_gap} Proof-of-Work"
+        sprint_deliverable = f"Public GitHub repository with {primary_gap} prototype, automated tests, and live deployment link"
+        micro_sprint_task = (
+            f"In the next 48 hours, build and publish an end-to-end prototype on GitHub demonstrating "
+            f"{target_skill_str} to bridge your resume gap, then attach the repository link to your application."
+        )
+        sprint_steps = [
+            f"Hours 0-12: Initialize repo, configure dev environment, and scaffold core architecture using {primary_gap}.",
+            f"Hours 12-24: Implement working business logic and integrate {secondary_gap} with automated test cases.",
+            f"Hours 24-36: Containerize application or deploy to cloud; document architecture in README.md with screenshots.",
+            f"Hours 36-48: Record a 60-second video demo or GIF, pin repo to GitHub profile, and feature link on CV."
+        ]
+    else:
+        lead_skill = matched_list[0] if matched_list else "Project"
+        sprint_title = f"48-Hour Micro-Sprint: Production Hardening for {lead_skill}"
+        sprint_deliverable = f"Production-grade GitHub repo with 90-second Loom walkthrough and benchmarks"
+        micro_sprint_task = (
+            f"In the next 48 hours, record a concise 90-second Loom architecture walkthrough of your {lead_skill} "
+            f"project, add benchmark metrics to the README, and embed the demo URL directly in your application header."
+        )
+        sprint_steps = [
+            f"Hours 0-12: Benchmark system latency and throughput for your {lead_skill} implementation.",
+            f"Hours 12-24: Add end-to-end integration tests and configure CI/CD pipeline on GitHub Actions.",
+            f"Hours 24-36: Author high-clarity architectural documentation with system design diagrams.",
+            f"Hours 36-48: Record 90-second Loom demo walkthrough and attach clickable link in application header."
+        ]
+
+    micro_sprint = MicroSprint(
+        title=sprint_title,
+        duration="48 Hours",
+        deliverable=sprint_deliverable,
+        steps=sprint_steps
+    )
+
+    return KeywordDelta(
+        matched_keywords=matched_list,
+        missing_prerequisites=missing_prerequisites,
+        resume_keyword_fixes=fixes,
+        micro_sprint_task=micro_sprint_task,
+        micro_sprint=micro_sprint
+    )
+
+
 def score_and_audit(
     profile: StudentProfile,
     search_result: Dict[str, Any],
@@ -110,12 +311,11 @@ def score_and_audit(
     # 2. Stated Skill Matches (up to 30 pts)
     matched_skills: List[str] = []
     student_skills = profile.skills or []
-    
+
     for skill in student_skills:
         skill_str = skill.strip()
         if not skill_str:
             continue
-        # Check boundary match or substring for languages like C++
         escaped_skill = re.escape(skill_str)
         if re.search(rf"(?i)(?:\b|(?<=\W)){escaped_skill}(?:\b|(?=\W))", audit_corpus):
             matched_skills.append(skill_str)
@@ -123,7 +323,6 @@ def score_and_audit(
     if student_skills:
         skill_ratio = len(matched_skills) / len(student_skills)
         if matched_skills:
-            # Proportional score from 15 to 30
             skill_score = min(30, max(15, int(round(30 * skill_ratio))))
             skill_status = "MET"
             skill_evidence = f"Verified matching skill token(s): {', '.join(matched_skills)} found in opportunity text."
@@ -132,7 +331,6 @@ def score_and_audit(
             skill_status = "UNCERTAIN"
             skill_evidence = f"Profile skills ({', '.join(student_skills)}) not explicitly verified in snippet or fetched page text."
     else:
-        # Check interests if skills empty
         matched_interests = [
             i for i in (profile.interests or [])
             if re.search(rf"(?i)\b{re.escape(i.strip())}\b", audit_corpus)
@@ -255,21 +453,6 @@ def score_and_audit(
         f"Deadline verification: {deadline_score}/15 ({deadline_status})."
     )
 
-    # Generate Actionable 3-Step Checklist
-    deadline_action = (
-        f"Verify the published deadline ({deadline_display}) on the host organization portal."
-        if deadline_display != "Unknown - Verification Required"
-        else "Inspect official primary portal to confirm active registration deadlines."
-    )
-    skills_action = (
-        f"Tailor CV/resume to prominently feature validated skills: {', '.join(matched_skills)}."
-        if matched_skills
-        else f"Highlight relevant academic projects corresponding to {profile.course_and_year}."
-    )
-    application_action = f"Complete submission checklist and apply directly at {source_url}."
-
-    next_actions = [deadline_action, skills_action, application_action]
-
     # Organization extraction
     org = search_result.get("organization") or search_result.get("site_name")
     if not org:
@@ -287,6 +470,33 @@ def score_and_audit(
 
     # Location
     loc = search_result.get("location") or ("Remote" if detected_work_mode == "Remote" else profile.location)
+
+    # Feature 2: Compute Skill & Keyword Delta Matrix
+    keyword_delta = compute_keyword_delta(
+        profile=profile,
+        corpus=audit_corpus,
+        matched_skills=matched_skills,
+        opportunity_title=title,
+        opportunity_category=category
+    )
+
+    # Generate Actionable 3-Step Checklist (incorporating keyword fixes)
+    deadline_action = (
+        f"Verify the published deadline ({deadline_display}) on the host organization portal."
+        if deadline_display != "Unknown - Verification Required"
+        else "Inspect official primary portal to confirm active registration deadlines."
+    )
+    if keyword_delta.resume_keyword_fixes:
+        skills_action = f"Resume Optimization: {keyword_delta.resume_keyword_fixes[0]}"
+    else:
+        skills_action = (
+            f"Tailor CV/resume to prominently feature validated skills: {', '.join(matched_skills)}."
+            if matched_skills
+            else f"Highlight relevant academic projects corresponding to {profile.course_and_year}."
+        )
+    application_action = f"Complete 48h micro-sprint and apply directly at {source_url}."
+
+    next_actions = [deadline_action, skills_action, application_action]
 
     # Deterministic ID based on source URL and title
     id_seed = f"{source_url}_{title}"
@@ -316,6 +526,6 @@ def score_and_audit(
         evidence_snippet=evidence_snippet,
         is_live_data=True,
         portal_health_status=portal_health_status,
-        portal_health_detail=portal_health_detail
+        portal_health_detail=portal_health_detail,
+        keyword_delta=keyword_delta
     )
-

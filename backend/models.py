@@ -28,6 +28,36 @@ class RequirementItem(BaseModel):
     evidence_or_reason: str = Field(..., description="Extracted textual evidence or reason for status")
 
 
+class MicroSprint(BaseModel):
+    title: str = Field(..., description="Actionable title for the 48-hour sprint")
+    duration: str = Field(default="48 Hours", description="Micro-sprint timeframe")
+    deliverable: str = Field(..., description="Tangible proof-of-work artifact or GitHub repo to attach to resume")
+    steps: List[str] = Field(default_factory=list, description="Phased sprint milestones")
+
+
+class KeywordDelta(BaseModel):
+    matched_keywords: List[str] = Field(
+        default_factory=list,
+        description="Skills present in profile & found in listing"
+    )
+    missing_prerequisites: List[str] = Field(
+        default_factory=list,
+        description="Skills demanded by listing but absent from profile"
+    )
+    resume_keyword_fixes: List[str] = Field(
+        default_factory=list,
+        description="Actionable CV optimization suggestions, e.g. Replace 'Backend Dev' with 'RESTful APIs'"
+    )
+    micro_sprint_task: str = Field(
+        ...,
+        description="Concrete 48-hour challenge to become eligible"
+    )
+    micro_sprint: Optional[MicroSprint] = Field(
+        default=None,
+        description="Structured 48-hour micro-sprint breakdown"
+    )
+
+
 class OpportunityRecord(BaseModel):
     id: str = Field(..., description="Unique identifier for opportunity")
     title: str = Field(..., description="Title of competition or internship")
@@ -80,4 +110,7 @@ class OpportunityRecord(BaseModel):
         default="Destination could not be reached or confirmed.",
         description="Detailed findings from destination portal stress-testing"
     )
-
+    keyword_delta: Optional[KeywordDelta] = Field(
+        default=None,
+        description="Skill & keyword delta matrix with CV keyword fixes and 48-hour micro-sprint"
+    )

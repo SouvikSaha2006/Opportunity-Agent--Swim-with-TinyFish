@@ -15,10 +15,18 @@ import {
   Square, 
   FileText, 
   Compass, 
-  Sparkles,
-  Link2,
-  ShieldCheck,
-  Activity
+  Sparkles, 
+  Link2, 
+  ShieldCheck, 
+  Activity,
+  Zap,
+  Target,
+  Copy,
+  Check,
+  Clock,
+  ArrowUpRight,
+  Flame,
+  Award
 } from 'lucide-react';
 
 export default function EvidenceDrawer({
@@ -28,10 +36,14 @@ export default function EvidenceDrawer({
   onSave
 }) {
   const [completedActions, setCompletedActions] = useState({});
+  const [completedSprintSteps, setCompletedSprintSteps] = useState({});
+  const [copiedFixIndex, setCopiedFixIndex] = useState(null);
 
-  // Reset checked actions when opportunity changes
+  // Reset checked states when opportunity changes
   useEffect(() => {
     setCompletedActions({});
+    setCompletedSprintSteps({});
+    setCopiedFixIndex(null);
   }, [opportunity?.id]);
 
   // Handle ESC key to close drawer
@@ -50,6 +62,19 @@ export default function EvidenceDrawer({
       ...prev,
       [idx]: !prev[idx],
     }));
+  };
+
+  const toggleSprintStep = (idx) => {
+    setCompletedSprintSteps((prev) => ({
+      ...prev,
+      [idx]: !prev[idx],
+    }));
+  };
+
+  const handleCopyFix = (text, idx) => {
+    navigator.clipboard.writeText(text);
+    setCopiedFixIndex(idx);
+    setTimeout(() => setCopiedFixIndex(null), 2000);
   };
 
   const getStatusIcon = (status) => {
@@ -122,6 +147,7 @@ export default function EvidenceDrawer({
   };
 
   const portalHealth = getPortalHealthBadge(opportunity.portal_health_status);
+  const keywordDelta = opportunity.keyword_delta;
 
   return (
     <div
@@ -130,7 +156,6 @@ export default function EvidenceDrawer({
       aria-label={`Evidence and Audit for ${opportunity.title}`}
       className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm transition-opacity duration-200"
       onClick={(e) => {
-        // Light dismiss on backdrop click
         if (e.target === e.currentTarget) {
           onClose();
         }
@@ -157,7 +182,7 @@ export default function EvidenceDrawer({
                 {opportunity.eligibility_status}
               </span>
 
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border inline-flex items-center space-x-1.5 ${portalHealth.badge}`}>
+              <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono border ${portalHealth.badge}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${portalHealth.dot}`} />
                 <span>{portalHealth.label}</span>
               </span>
@@ -246,6 +271,210 @@ export default function EvidenceDrawer({
               {opportunity.match_explanation}
             </div>
           </div>
+
+          {/* FEATURE 2: Skill & Keyword Delta Matrix */}
+          {keywordDelta && (
+            <div className="space-y-4 bg-[#181818] border border-[#2E2E2E] rounded-xl p-4 relative overflow-hidden">
+              <div className="flex items-center justify-between pb-3 border-b border-[#2A2A2A]">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-md bg-[#0061FE]/20 text-[#0061FE] flex items-center justify-center">
+                    <Target className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                      Skill & Keyword Delta Matrix
+                    </h3>
+                    <p className="text-[11px] text-zinc-400">
+                      Career Acceleration • CV Alignment & 48-Hour Micro-Sprint
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0061FE]/10 text-[#60A5FA] border border-[#0061FE]/30">
+                  Feature 2
+                </span>
+              </div>
+
+              {/* Keyword Comparison Strip */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Matched Keywords */}
+                <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-medium text-zinc-300">
+                    <span className="flex items-center gap-1.5 text-[#00F5B4]">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Matched Profile Skills</span>
+                    </span>
+                    <span className="font-mono text-[11px] text-zinc-500">
+                      {keywordDelta.matched_keywords?.length || 0}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {keywordDelta.matched_keywords?.length > 0 ? (
+                      keywordDelta.matched_keywords.map((kw, i) => (
+                        <span
+                          key={i}
+                          className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-[#00F5B4]/10 text-[#00F5B4] border border-[#00F5B4]/30"
+                        >
+                          ✓ {kw}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-zinc-500 italic">No exact keyword matches found</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Missing Prerequisites */}
+                <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-medium text-zinc-300">
+                    <span className="flex items-center gap-1.5 text-[#F59E0B]">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Missing Prerequisites</span>
+                    </span>
+                    <span className="font-mono text-[11px] text-zinc-500">
+                      {keywordDelta.missing_prerequisites?.length || 0}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {keywordDelta.missing_prerequisites?.length > 0 ? (
+                      keywordDelta.missing_prerequisites.map((kw, i) => (
+                        <span
+                          key={i}
+                          className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30"
+                        >
+                          + {kw}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-[#00F5B4] italic">All primary stack requirements met!</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Resume Keyword Fixes */}
+              {keywordDelta.resume_keyword_fixes?.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#60A5FA]" />
+                      <span>ATS Resume Keyword Optimizations</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-500">
+                      Click to copy recommendation
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {keywordDelta.resume_keyword_fixes.map((fix, idx) => {
+                      const isCopied = copiedFixIndex === idx;
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => handleCopyFix(fix, idx)}
+                          className="bg-[#141414] border border-[#2A2A2A] hover:border-[#0061FE]/50 rounded-lg p-2.5 flex items-start justify-between gap-3 cursor-pointer group transition-all"
+                        >
+                          <div className="flex items-start space-x-2 text-xs text-zinc-300 leading-relaxed">
+                            <span className="text-[#0061FE] font-bold font-mono">#{idx + 1}</span>
+                            <span className="group-hover:text-white transition-colors">{fix}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="p-1 rounded text-zinc-500 group-hover:text-[#60A5FA] transition-colors shrink-0 pt-0.5"
+                            title="Copy recommendation"
+                          >
+                            {isCopied ? (
+                              <span className="flex items-center space-x-1 text-[#00F5B4] text-[10px] font-mono">
+                                <Check className="w-3 h-3" />
+                                <span>Copied</span>
+                              </span>
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ⚡ 48-Hour Micro-Sprint Challenge */}
+              <div className="mt-3 bg-gradient-to-br from-[#1C2333] to-[#161616] border border-[#0061FE]/40 rounded-xl p-4 space-y-3 relative overflow-hidden shadow-dropbox-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="p-1 rounded-md bg-[#0061FE] text-white">
+                      <Zap className="w-3.5 h-3.5 fill-current" />
+                    </span>
+                    <div>
+                      <span className="text-xs font-bold text-white tracking-tight">
+                        {keywordDelta.micro_sprint?.title || '48-Hour Micro-Sprint Challenge'}
+                      </span>
+                      <div className="text-[10px] text-zinc-400 flex items-center gap-1 font-mono">
+                        <Clock className="w-3 h-3 text-[#60A5FA]" />
+                        <span>Timeline: 48 Hours • Tangible Proof-of-Work</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-[#0061FE]/20 text-[#60A5FA] border border-[#0061FE]/40">
+                    Bridge Gap Fast
+                  </span>
+                </div>
+
+                {/* Micro-Sprint Task Statement */}
+                <p className="text-xs text-zinc-200 leading-relaxed bg-[#101522]/80 p-3 rounded-lg border border-[#0061FE]/20 font-sans">
+                  {keywordDelta.micro_sprint_task}
+                </p>
+
+                {/* Tangible Deliverable */}
+                {keywordDelta.micro_sprint?.deliverable && (
+                  <div className="text-xs text-zinc-400 flex items-start gap-1.5 pt-0.5">
+                    <Award className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span>
+                      <strong className="text-zinc-200">Target Deliverable:</strong> {keywordDelta.micro_sprint.deliverable}
+                    </span>
+                  </div>
+                )}
+
+                {/* 4-Phase Sprint Milestones */}
+                {keywordDelta.micro_sprint?.steps?.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-mono text-zinc-400 uppercase tracking-wider block">
+                      Sprint Execution Milestones:
+                    </span>
+                    <div className="space-y-1.5">
+                      {keywordDelta.micro_sprint.steps.map((step, sIdx) => {
+                        const stepDone = completedSprintSteps[sIdx];
+                        return (
+                          <div
+                            key={sIdx}
+                            onClick={() => toggleSprintStep(sIdx)}
+                            className={`flex items-start space-x-2.5 p-2 rounded-lg border cursor-pointer transition-colors ${
+                              stepDone
+                                ? 'bg-[#121822] border-[#2E2E2E] text-zinc-500 line-through'
+                                : 'bg-[#141A28] border-[#2A344C] hover:border-[#0061FE] text-zinc-200'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              className="pt-0.5 text-[#0061FE] shrink-0"
+                            >
+                              {stepDone ? (
+                                <CheckSquare className="w-3.5 h-3.5 text-[#00F5B4]" />
+                              ) : (
+                                <Square className="w-3.5 h-3.5 text-zinc-400" />
+                              )}
+                            </button>
+                            <span className="text-xs leading-relaxed">{step}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Dedicated Section: Destination Form Audit */}
           <div className="space-y-2">

@@ -76,10 +76,16 @@ Tactile input controls with instant profile presets designed for quick live test
 - Save top-ranked opportunities with a single click.
 - Seamlessly query, review evidence, or delete entries via `GET /api/saved` and `DELETE /api/saved/{id}`.
 
-### 7. Autonomous Destination Portal Stress-Tester
+### 7. Feature 1: Autonomous Destination Portal Stress-Tester
 - Elevates TinyFish web inspection beyond surface crawling: follows candidate application and registration endpoints into final forms (Unstop, Devfolio, Google Forms, corporate ATS).
 - Deterministically verifies whether the destination form is **Live Verified** (`PORTAL_LIVE_VERIFIED`), **Closed/Expired** (`PORTAL_CLOSED_OR_EXPIRED`), or **Gated behind Auth** (`AUTH_WALL_REQUIRED`).
 - Emits real-time `[DEEP_AUDIT]` SSE telemetry and displays tactile badges and deep diagnostics in the Evidence Drawer.
+
+### 8. Feature 2: Resume Gap & Keyword Delta Engine with 48-Hour Micro-Sprint
+Transforms Opportunity Agent into a career-acceleration engine:
+- **Skill & Keyword Delta Matrix:** Computes exact matched skills vs. missing prerequisites extracted from the crawled listing.
+- **ATS Resume Keyword Fixes:** Generates actionable bullet optimizations to tailor CVs directly to host company expectations.
+- **48-Hour Micro-Sprint Challenge:** Formulates a concrete, phased 48-hour challenge (Hour 0-12, 12-24, 24-36, 36-48) with tangible proof-of-work deliverables (public GitHub repo, automated tests, benchmarks, and demo links).
 
 ---
 
@@ -92,6 +98,8 @@ flowchart TD
         Terminal[Live Telemetry Console - SSE]
         Matrix[Ranked Results Matrix]
         Drawer[Split-Screen Evidence Drawer]
+        Delta[Skill & Keyword Delta Matrix]
+        Sprint[48-Hour Micro-Sprint Challenge]
         Shortlist[Saved Shortlist Panel]
     end
 
@@ -101,6 +109,7 @@ flowchart TD
         SaveAPI["GET / POST / DELETE /api/saved"]
         QueryBuilder[Intelligent Query Builder]
         AuditEngine[Deterministic Matcher & Scorer]
+        DeltaEngine[Resume Gap & Keyword Delta Engine]
         SQLite[(SQLite Database)]
     end
 
@@ -119,9 +128,13 @@ flowchart TD
     TFFetch -->|Clean Page Markdown & Latency| AuditEngine
     StreamAPI -->|Stream Fetch Telemetry| Terminal
 
+    AuditEngine -->|Compute Keywords & Gaps| DeltaEngine
+    DeltaEngine -->|KeywordDelta & MicroSprint| AuditEngine
     AuditEngine -->|Audit & Rank 0-100| StreamAPI
     StreamAPI -->|Deliver RESULTS Event| Matrix
     Matrix -->|Inspect Evidence| Drawer
+    Drawer --> Delta
+    Drawer --> Sprint
     Drawer -->|Bookmark Opportunity| SaveAPI
     SaveAPI <--> SQLite
     Shortlist <--> SaveAPI
@@ -154,12 +167,12 @@ Unlike LLM-only pipelines that hallucinate eligibility, Opportunity Agent utiliz
 .
 ├── backend/
 │   ├── app.py                  # FastAPI application with SSE streaming endpoints & CORS
-│   ├── models.py               # Pydantic schemas (StudentProfile, OpportunityRecord, RequirementItem)
+│   ├── models.py               # Pydantic schemas (StudentProfile, OpportunityRecord, KeywordDelta, MicroSprint)
 │   ├── researcher.py           # TinyFish Search & Fetch API client with latency tracking
-│   ├── matcher.py              # Zero-hallucination deterministic scoring & audit engine
+│   ├── matcher.py              # Deterministic scoring, Keyword Delta & Micro-Sprint Engine
 │   ├── database.py             # SQLite persistence operations for saved opportunities
 │   └── tests/
-│       └── test_matcher.py     # Comprehensive unit tests for audit engine & fallback logic
+│       └── test_matcher.py     # Comprehensive unit tests for audit engine, health stress-tester & keyword delta
 ├── frontend/
 │   ├── index.html              # Clean editorial document shell with Inter & JetBrains Mono
 │   ├── package.json            # React 19, Lucide, Tailwind CSS, clsx, tailwind-merge
@@ -173,9 +186,9 @@ Unlike LLM-only pipelines that hallucinate eligibility, Opportunity Agent utiliz
 │           ├── Header.jsx           # Minimalist navbar, team badge, live agent status
 │           ├── ProfilePanel.jsx     # Tactile profile configuration with 4 quick presets
 │           ├── TelemetryConsole.jsx # Real-time dark terminal for TinyFish crawl telemetry
-│           ├── ResultsMatrix.jsx    # Ranked opportunity cards with score progress pills
-│           ├── EvidenceDrawer.jsx   # Split-panel evidence audit, verbatim citation & checklist
-│           └── SavedShortlist.jsx   # Persisted shortlist with delete and source links
+│           ├── ResultsMatrix.jsx    # Ranked opportunity cards with score & keyword delta pills
+│           ├── EvidenceDrawer.jsx   # Split-panel evidence audit, Keyword Delta Matrix & 48h Micro-Sprint
+│           └── SavedShortlist.jsx   # Persisted shortlist with delete, delta pills, and source links
 ├── .env.example                # Environment variables template
 ├── requirements.txt            # Python dependencies (FastAPI, Uvicorn, Pydantic, Pytest, etc.)
 └── README.md                   # Complete system documentation
@@ -250,13 +263,13 @@ Open your browser at **`http://localhost:5173`**.
 
 ### 3. Run Backend Unit Tests
 
-To verify the deterministic audit rules, deadline extractions, and scoring logic:
+To verify the deterministic audit rules, deadline extractions, portal stress-testing, and keyword delta engine:
 
 ```bash
 python -m pytest backend/tests -v
 ```
 
-All tests will run and validate zero-hallucination guarantees and score calculations.
+All 8 tests will run and validate zero-hallucination guarantees and score calculations.
 
 ---
 
@@ -293,7 +306,7 @@ Accepts a `StudentProfile` and streams Server-Sent Events (SSE) representing liv
 
 **SSE Event Types:**
 - `type: "TELEMETRY"`: Live crawl hops, search queries, fetch latencies, and HTTP status codes.
-- `type: "RESULTS"`: Full payload of scored and audited `OpportunityRecord` items.
+- `type: "RESULTS"`: Full payload of scored and audited `OpportunityRecord` items (including `keyword_delta` and `portal_health_status`).
 - `type: "COMPLETE"`: Pipeline execution summary.
 
 ### 3. `GET /api/saved`

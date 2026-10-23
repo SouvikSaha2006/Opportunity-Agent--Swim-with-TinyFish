@@ -11,9 +11,10 @@ import {
   AlertTriangle, 
   XCircle, 
   ArrowRight, 
-  Sparkles,
-  Link2,
-  FolderOpen
+  Sparkles, 
+  Link2, 
+  FolderOpen,
+  Zap
 } from 'lucide-react';
 import { getPortalHealthBadge } from './ResultsMatrix';
 
@@ -116,6 +117,7 @@ export default function SavedShortlist({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredList.map((opp) => {
             const badge = getStatusBadge(opp.eligibility_status);
+            const kd = opp.keyword_delta;
 
             return (
               <div
@@ -167,7 +169,7 @@ export default function SavedShortlist({
                     </span>
                   </div>
 
-                  {/* Portal Health Tactile Badge & Source Link */}
+                  {/* Portal Health Tactile Badge, Keyword Delta & Source Link */}
                   {(() => {
                     const portalBadge = getPortalHealthBadge(opp.portal_health_status);
                     return (
@@ -193,6 +195,20 @@ export default function SavedShortlist({
                           <span className={`w-1.5 h-1.5 rounded-full ${portalBadge.dot}`} />
                           <span>{portalBadge.label}</span>
                         </span>
+
+                        {kd && (
+                          <span
+                            className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono border bg-[#1C1F2E] text-[#60A5FA] border-[#0061FE]/30"
+                            title={`Matched: ${kd.matched_keywords?.join(', ') || 'None'} | Missing: ${kd.missing_prerequisites?.join(', ') || 'None'}`}
+                          >
+                            <Zap className="w-2.5 h-2.5 text-[#0061FE]" />
+                            <span>
+                              {kd.missing_prerequisites?.length > 0
+                                ? `${kd.missing_prerequisites.length} Skill Gap`
+                                : 'All Skills Matched'}
+                            </span>
+                          </span>
+                        )}
                       </div>
                     );
                   })()}
