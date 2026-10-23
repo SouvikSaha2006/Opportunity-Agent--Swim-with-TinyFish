@@ -38,10 +38,30 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for React/Vite development and general clients
+# Permissive Production & Preview CORS Configuration
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+custom_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+
+default_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+frontend_url = os.environ.get("FRONTEND_URL", "").strip()
+if frontend_url and frontend_url not in custom_origins:
+    custom_origins.append(frontend_url)
+
+allowed_origins = list(dict.fromkeys(default_origins + custom_origins))
+
+# Permit incoming requests from Vercel previews (*.vercel.app), local dev, and production domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins if "*" not in allowed_origins else ["*"],
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,14 +70,20 @@ app.add_middleware(
 
 @app.get("/api/health", tags=["System"])
 async def health_check():
-    """Returns backend health and TinyFish API key status."""
+    """Returns backend health, timestamp, and environment sanity checks without leaking secrets."""
     api_key = os.environ.get("TINYFISH_API_KEY", "")
     return {
         "status": "healthy",
         "service": "Opportunity Agent Backend",
         "team": "The MetaMinds",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "environment": os.environ.get(
+            "ENVIRONMENT",
+            "production" if (os.environ.get("RENDER") or os.environ.get("RAILWAY_ENVIRONMENT")) else "development"
+        ),
         "tinyfish_api_key_configured": bool(api_key and not api_key.startswith("your_")),
-        "database": "SQLite (initialized)"
+        "database": "SQLite (initialized)",
+        "cors_preview_supported": True
     }
 
 
@@ -258,7 +284,7 @@ async def research_stream_endpoint(profile: StudentProfile):
         event_stream_generator(profile),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no"
         }
@@ -267,4 +293,13 @@ async def research_stream_endpoint(profile: StudentProfile):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.app:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    is_dev = os.environ.get("ENVIRONMENT", "development").lower() == "development"
+    uvicorn.run(
+        "backend.app:app",
+        host="0.0.0.0",
+        port=port,
+        reload=is_dev,
+        proxy_headers=True,
+        forwarded_allow_ips="*"
+    )

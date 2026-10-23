@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark, Sparkles, Activity, ShieldCheck, AlertCircle, RefreshCw, Layers } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function Header({ activeTab, setActiveTab, savedCount = 0 }) {
   const [health, setHealth] = useState({
@@ -10,7 +11,7 @@ export default function Header({ activeTab, setActiveTab, savedCount = 0 }) {
 
   const checkHealth = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/health', {
+      const res = await fetch(`${API_BASE_URL}/api/health`, {
         headers: { Accept: 'application/json' },
       });
       if (res.ok) {
@@ -116,7 +117,7 @@ export default function Header({ activeTab, setActiveTab, savedCount = 0 }) {
               title={
                 health.online
                   ? `Backend active | TinyFish: ${health.data?.tinyfish_api_key_configured ? 'API Key Active' : 'Fallback Crawler'} | ${health.data?.database}`
-                  : 'FastAPI Backend offline at http://localhost:8000'
+                  : `FastAPI Backend offline at ${API_BASE_URL}`
               }
             >
               <span className="relative flex h-2 w-2">

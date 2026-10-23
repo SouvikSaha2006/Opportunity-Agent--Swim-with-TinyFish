@@ -6,8 +6,9 @@ import ResultsMatrix from './components/ResultsMatrix';
 import EvidenceDrawer from './components/EvidenceDrawer';
 import SavedShortlist from './components/SavedShortlist';
 import { Sparkles, Terminal, CheckCircle2, AlertCircle, Info, Database } from 'lucide-react';
+import { API_BASE_URL } from './config';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = API_BASE_URL;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('studio');
@@ -210,7 +211,7 @@ export default function App() {
         {
           type: 'TELEMETRY',
           phase: 'CONNECTION_ERROR',
-          detail: `Stream failed: ${error.message}. Make sure FastAPI is running on http://localhost:8000`,
+          detail: `Stream failed: ${error.message}. Make sure FastAPI is running on ${API_BASE_URL}`,
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -339,7 +340,7 @@ export default function App() {
             <span>TinyFish Hackathon</span>
           </div>
           <div className="text-[11px] text-zinc-600">
-            FastAPI Backend: <code className="text-zinc-400">http://localhost:8000</code> • SSE Streaming Reader
+            FastAPI Backend: <code className="text-zinc-400">{API_BASE_URL}</code> • SSE Streaming Reader
           </div>
         </div>
       </footer>
