@@ -72,7 +72,7 @@ app.add_middleware(
 @app.get("/api/health", tags=["System"])
 async def health_check():
     """Returns backend health, timestamp, and environment sanity checks without leaking secrets."""
-    api_key = os.environ.get("TINYFISH_API_KEY", "")
+    api_key = os.environ.get("TINYFISH_API_KEY", TINYFISH_API_KEY)
     return {
         "status": "healthy",
         "service": "Opportunity Agent Backend",

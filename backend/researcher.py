@@ -9,7 +9,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-TINYFISH_API_KEY = os.environ.get("TINYFISH_API_KEY", "")
+TINYFISH_API_KEY = os.environ.get("TINYFISH_API_KEY", "sk-tinyfish-RO9KmUEN2DVsyJ716aHtEKf_-EwxbT8-")
 SEARCH_API_ENDPOINT = "https://api.search.tinyfish.ai"
 FETCH_API_ENDPOINT = "https://api.fetch.tinyfish.ai"
 
