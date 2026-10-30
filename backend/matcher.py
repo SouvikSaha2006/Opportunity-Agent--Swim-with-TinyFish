@@ -561,9 +561,16 @@ def score_and_audit(
 
     # Category determination
     lower_title = title.lower()
-    if "hackathon" in lower_title or "competition" in lower_title or "challenge" in lower_title:
+    lower_snippet = snippet.lower()
+    if "grant" in lower_title or "grant" in lower_snippet:
+        category = "Grant"
+    elif "fellowship" in lower_title or "fellowship" in lower_snippet:
+        category = "Fellowship"
+    elif "hackathon" in lower_title or "competition" in lower_title or "challenge" in lower_title or "championship" in lower_title:
         category = "Competition"
-    elif "intern" in lower_title or "fellowship" in lower_title or "trainee" in lower_title:
+    elif "job" in lower_title or "junior developer" in lower_title or "associate software engineer" in lower_title:
+        category = "Job"
+    elif "intern" in lower_title or "trainee" in lower_title:
         category = "Internship"
     else:
         category = profile.opportunity_type if profile.opportunity_type != "Both" else "Opportunity"

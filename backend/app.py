@@ -5,13 +5,14 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 
 from backend.models import StudentProfile, OpportunityRecord
 from backend import database
+from backend.resume_parser import parse_resume_pdf, parse_resume_text
 from backend.researcher import (
     build_search_query,
     search_opportunities,
@@ -282,6 +283,109 @@ async def research_stream_endpoint(profile: StudentProfile):
     """
     return StreamingResponse(
         event_stream_generator(profile),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.post("/api/resume/parse", tags=["Resume"])
+async def parse_resume_endpoint(file: UploadFile = File(...)):
+    """
+    Extracts text and structured candidate profile from an uploaded PDF resume
+    using lightweight pypdf and regex entity extraction.
+    """
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No file was uploaded."
+        )
+
+    is_pdf = file.filename.lower().endswith(".pdf") or (file.content_type and "pdf" in file.content_type.lower())
+    if not is_pdf:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF documents are supported (.pdf)."
+        )
+
+    try:
+        pdf_bytes = file.file.read() if hasattr(file, "file") else await file.read()
+        if not pdf_bytes or len(pdf_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The uploaded PDF file is empty (0 bytes)."
+            )
+        if len(pdf_bytes) > 10 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File size exceeds maximum supported limit of 10MB."
+            )
+
+        parsed_data = parse_resume_pdf(pdf_bytes, filename=file.filename)
+        return parsed_data
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(ve)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process PDF resume: {str(e)}"
+        )
+
+
+@app.post("/api/resume/research-stream", tags=["Resume"])
+async def resume_research_stream_endpoint(file: UploadFile = File(...)):
+    """
+    Accepts an uploaded PDF resume, extracts candidate profile instantly,
+    and returns an SSE stream that discovers and ranks opportunities.
+    """
+    if not file.filename or not (file.filename.lower().endswith(".pdf") or (file.content_type and "pdf" in file.content_type.lower())):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF documents are supported (.pdf)."
+        )
+
+    try:
+        pdf_bytes = file.file.read() if hasattr(file, "file") else await file.read()
+        if not pdf_bytes or len(pdf_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The uploaded PDF file is empty (0 bytes)."
+            )
+        parsed_data = parse_resume_pdf(pdf_bytes, filename=file.filename)
+        profile = StudentProfile(**parsed_data["profile"])
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to parse resume: {str(e)}")
+
+    async def resume_event_stream():
+        def sse_message(payload: Dict[str, Any]) -> str:
+            return f"data: {json.dumps(payload)}\n\n"
+
+        yield sse_message({
+            "type": "TELEMETRY",
+            "phase": "RESUME_PARSED",
+            "detail": f"Resume '{file.filename}' parsed: {parsed_data.get('detected_skills_count', 0)} skills detected for {profile.name} ({parsed_data.get('experience_level', 'Student')}).",
+            "parsed_profile": parsed_data,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        await asyncio.sleep(0.05)
+
+        async for chunk in event_stream_generator(profile):
+            yield chunk
+
+    return StreamingResponse(
+        resume_event_stream(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",

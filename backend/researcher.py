@@ -36,11 +36,11 @@ def build_search_query(profile: Any) -> str:
     # Opportunity type
     opp_type = getattr(profile, "opportunity_type", "Both")
     if opp_type == "Competition":
-        query_parts.append("hackathon student competition")
+        query_parts.append("hackathon student competition fellowship")
     elif opp_type == "Internship":
-        query_parts.append("student internship opportunity")
+        query_parts.append("student internship fellowship job opportunity")
     else:
-        query_parts.append("student internship hackathon competition")
+        query_parts.append("student hackathon fellowship grant internship job opportunity")
 
     # Skills & Interests
     skills = getattr(profile, "skills", [])
@@ -323,7 +323,7 @@ def _fallback_destination_status(target_url: str) -> Tuple[str, str]:
     url_lower = target_url.lower()
     if "cyberdefense" in url_lower:
         return ("PORTAL_CLOSED_OR_EXPIRED", "Destination page explicitly signals registration is closed.")
-    if "careers.example" in url_lower or "sih.gov.in" in url_lower:
+    if "careers.example" in url_lower or "sih.gov.in" in url_lower or "fellowships.example" in url_lower or "grants.example" in url_lower:
         return ("PORTAL_LIVE_VERIFIED", "Application portal actively accepting submissions.")
     if "summerofcode" in url_lower:
         return ("AUTH_WALL_REQUIRED", "Destination form is gated behind a platform login/registration wall.")
@@ -351,11 +351,32 @@ def _fallback_search_results(query: str) -> List[Dict[str, Any]]:
             "location": "Global / Remote"
         },
         {
+            "title": "Open Source AI Engineering Fellowship 2026",
+            "url": "https://fellowships.example.org/ai-fellows-2026",
+            "snippet": "12-week remote fellowship for student builders creating agentic systems and LLM developer tools. Requires Python, FastAPI, React, PyTorch. Full stipend provided. Deadline: December 20, 2026.",
+            "organization": "Open Source AI Foundation",
+            "location": "Remote / Worldwide"
+        },
+        {
+            "title": "Student AI Innovation Research Grant 2026",
+            "url": "https://grants.example.org/ai-grant-2026",
+            "snippet": "$10,000 equity-free research grant for student teams developing open-source AI agents and autonomous web automation tools. Deadline: November 30, 2026.",
+            "organization": "Frontier AI Grants",
+            "location": "Remote / Global"
+        },
+        {
             "title": "AI & Data Science Student Internship 2026",
             "url": "https://careers.example.com/ai-intern-2026",
             "snippet": "Looking for passionate undergraduate students with hands-on Python, PyTorch, and Data Analytics background. Work mode: Hybrid / Bangalore office. Stipend provided. Apply before December 30, 2026.",
             "organization": "Apex Labs",
             "location": "Bangalore / Hybrid"
+        },
+        {
+            "title": "Associate Software Engineer / Junior Developer 2026",
+            "url": "https://careers.example.com/junior-engineer-2026",
+            "snippet": "Full-time graduate entry role for software engineers. Stack: Python, TypeScript, React, Docker, and RESTful APIs. Hybrid in Bangalore or Remote. Deadline: December 15, 2026.",
+            "organization": "Apex Technology Labs",
+            "location": "Bangalore / Remote"
         },
         {
             "title": "Global Cyber Defense University Championship",
@@ -365,4 +386,5 @@ def _fallback_search_results(query: str) -> List[Dict[str, Any]]:
             "location": "Online"
         }
     ]
+
 

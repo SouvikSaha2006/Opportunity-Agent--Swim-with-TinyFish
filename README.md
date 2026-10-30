@@ -93,6 +93,12 @@ Protects students from expired reposts, stale aggregators, and fraudulent listin
 - **Domain Authority Classification:** Classifies source URLs into `CANONICAL_HOST` (verified direct educational or corporate domain) vs. `AGGREGATOR_REPOST` (third-party syndicate or forum) vs. `UNKNOWN`.
 - **Evidence Drawer Trust Audit:** Dedicated Dropbox-styled card surfacing credibility status pills, detected calendar year badges with active 2026 indicators, host attribution, and high-visibility temporal warning alert banners.
 
+### 10. Feature 4: Smart PDF Resume / CV Reader & Instant Match Engine
+Transforms cold discovery into instant, personalized opportunity discovery:
+- **Lightweight PyPDF Extraction:** Blazing-fast PDF parsing via `pypdf` with byte sanitation, zero-overhead execution, and corrupted/encrypted document handling.
+- **Deterministic Regex Entity Extraction:** Intelligently extracts candidate name, education level, academic standing/batch, technical skills catalog, interest domains, seniority level, and location.
+- **1-Click Auto-Match Autopilot:** Automatically maps parsed skills into the TinyFish opportunity pipeline to discover, score, and rank tailored Hackathons, Fellowships, Grants, and Jobs.
+- **Pre-Packaged Sample Resumes:** One-click demo testers in the UI (*Arjun Sharma - AI Agents / 3rd Yr* and *Priya Nair - Cloud / GSoC*) allowing judges to test the full PDF pipeline instantly without uploading personal files.
 
 ---
 
@@ -276,7 +282,7 @@ To verify the deterministic audit rules, deadline extractions, portal stress-tes
 python -m pytest backend/tests -v
 ```
 
-All 8 tests will run and validate zero-hallucination guarantees and score calculations.
+All 26 comprehensive tests will run across deployment configuration, deterministic matcher scoring, temporal drift detection, and the PyPDF resume parser engine.
 
 ---
 
@@ -294,7 +300,15 @@ Returns backend connectivity and TinyFish API key configuration status.
 }
 ```
 
-### 2. `POST /api/research-stream`
+### 2. `POST /api/resume/parse`
+Extracts structured candidate profile, detected technical stack, domains, and seniority tier from an uploaded PDF resume.
+- **Content-Type:** `multipart/form-data`
+- **Body:** `file` (PDF file, max 10MB)
+
+### 3. `POST /api/resume/research-stream`
+Accepts a PDF resume and directly initiates an SSE stream that parses candidate credentials and streams live TinyFish opportunity search, crawl, and audit results in a single request.
+
+### 4. `POST /api/research-stream`
 Accepts a `StudentProfile` and streams Server-Sent Events (SSE) representing live TinyFish telemetry and audited opportunities.
 
 **Request Payload:**
@@ -316,10 +330,10 @@ Accepts a `StudentProfile` and streams Server-Sent Events (SSE) representing liv
 - `type: "RESULTS"`: Full payload of scored and audited `OpportunityRecord` items (including `keyword_delta` and `portal_health_status`).
 - `type: "COMPLETE"`: Pipeline execution summary.
 
-### 3. `GET /api/saved`
+### 5. `GET /api/saved`
 Retrieves all bookmarked opportunities from SQLite.
 
-### 4. `POST /api/save`
+### 6. `POST /api/save`
 Persists an `OpportunityRecord` to SQLite with conflict resolution.
 
 ### 5. `DELETE /api/saved/{opp_id}`
